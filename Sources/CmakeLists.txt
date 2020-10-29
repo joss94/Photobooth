@@ -1,0 +1,85 @@
+cmake_minimum_required (VERSION 3.15)	
+
+enable_language(CXX)
+
+set (CMAKE_CONFIGURATION_TYPES "Debug;Release")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Zi")
+
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+
+project(Photobooth LANGUAGES CXX)
+
+#-------------------------------------------------------------------------------------------------------------------
+# GET SOURCES
+#-------------------------------------------------------------------------------------------------------------------
+file(GLOB_RECURSE Photobooth_src LIST_DIRECTORIES false 
+
+		"${Photobooth_SOURCE_DIR}/*.cpp" 
+		"${Photobooth_SOURCE_DIR}/*.c"
+		"${Photobooth_SOURCE_DIR}/*.h"
+		"${Photobooth_SOURCE_DIR}/*.qrc")
+
+add_executable(Photobooth ${Photobooth_src})
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT Photobooth)
+
+set_property(TARGET Photobooth PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
+foreach(src IN ITEMS ${Photobooth_src})
+    get_filename_component(src_path "${src}" PATH)
+    file(RELATIVE_PATH rel_path "${Photobooth_SOURCE_DIR}" "${src_path}")	
+    string(REPLACE "/" "\\" group_path "${rel_path}")
+    source_group("${group_path}" FILES "${src}")
+    target_include_directories(Photobooth PUBLIC "${src_path}/")
+endforeach()
+
+#-------------------------------------------------------------------------------------------------------------------
+# LINK OPENCV DEPENDENCIES
+#-------------------------------------------------------------------------------------------------------------------
+find_package( OpenCV REQUIRED)
+if (OpenCV_FOUND)
+  target_link_libraries(Photobooth ${OpenCV_LIBS})
+else ()
+  message(FATAL_ERROR "opencv not found")
+endif ()
+
+#-------------------------------------------------------------------------------------------------------------------
+# LINK QT DEPENDENCIES
+#-------------------------------------------------------------------------------------------------------------------
+find_package(Qt5 COMPONENTS Core REQUIRED)
+target_link_libraries(Photobooth Qt5::Core)
+find_package(Qt5 COMPONENTS Gui REQUIRED)
+target_link_libraries(Photobooth Qt5::Gui)
+find_package(Qt5 COMPONENTS Widgets REQUIRED)
+target_link_libraries(Photobooth Qt5::Widgets)
+find_package(Qt5 COMPONENTS Network REQUIRED)
+target_link_libraries(Photobooth Qt5::Network)
+find_package(Qt5 COMPONENTS Xml REQUIRED)
+target_link_libraries(Photobooth Qt5::Xml)
+find_package(Qt5 COMPONENTS SerialPort REQUIRED)
+
+#-------------------------------------------------------------------------------------------------------------------
+# PREPROCESSOR 
+#-------------------------------------------------------------------------------------------------------------------
+add_definitions(-DUNICODE)
+add_definitions(-D_X64_MACHINE)
+
+#-------------------------------------------------------------------------------------------------------------------
+# POST BUILD 
+#-------------------------------------------------------------------------------------------------------------------
+#OpenCV
+get_target_property(opencvDLL opencv_world IMPORTED_LOCATION_RELEASE)
+add_custom_command(TARGET Photobooth PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different ${opencvDLL} $<TARGET_FILE_DIR:Photobooth>)
+
+#Qt
+get_target_property(Qt5_CoreLocation Qt5::Core LOCATION)
+add_custom_command(TARGET Photobooth PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different ${Qt5_CoreLocation} $<TARGET_FILE_DIR:Photobooth>)
+get_target_property(Qt5_WidgetsLocation Qt5::Widgets LOCATION)
+add_custom_command(TARGET Photobooth PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different ${Qt5_WidgetsLocation} $<TARGET_FILE_DIR:Photobooth>)
+get_target_property(Qt5_NetworkLocation Qt5::Network LOCATION)
+add_custom_command(TARGET Photobooth PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different ${Qt5_NetworkLocation} $<TARGET_FILE_DIR:Photobooth>)
+get_target_property(Qt5_XmlLocation Qt5::Xml LOCATION)
+add_custom_command(TARGET Photobooth PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different ${Qt5_XmlLocation} $<TARGET_FILE_DIR:Photobooth>)
+get_target_property(Qt5_GuiLocation Qt5::Gui LOCATION)
+add_custom_command(TARGET Photobooth PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different ${Qt5_GuiLocation} $<TARGET_FILE_DIR:Photobooth>)
