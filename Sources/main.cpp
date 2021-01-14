@@ -15,6 +15,7 @@
 #include "PhotoboothContext.h"
 
 PhotoboothContext* ctx = 0;
+Q_DECLARE_METATYPE(cv::Mat)
 
 BOOL WINAPI ConsoleHandlerRoutine(DWORD dwCtrlType) 
 {
@@ -29,6 +30,8 @@ BOOL WINAPI ConsoleHandlerRoutine(DWORD dwCtrlType)
 
 int main(int argc, char *argv[]) 
 {
+	qRegisterMetaType<cv::Mat>();
+
     SetConsoleCtrlHandler(ConsoleHandlerRoutine, TRUE);
 
     QApplication b(argc, argv);

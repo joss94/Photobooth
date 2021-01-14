@@ -70,7 +70,9 @@ add_definitions(-D_X64_MACHINE)
 #-------------------------------------------------------------------------------------------------------------------
 #OpenCV
 get_target_property(opencvDLL opencv_world IMPORTED_LOCATION_RELEASE)
-add_custom_command(TARGET Photobooth PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different ${opencvDLL} $<TARGET_FILE_DIR:Photobooth>)
+get_filename_component(opencvDLLNoExt ${opencvDLL} NAME_WE)
+get_filename_component(opencvDLLDir ${opencvDLL} DIRECTORY)
+add_custom_command(TARGET Photobooth PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${opencvDLLDir}/${opencvDLLNoExt}$<$<CONFIG:debug>:d>.dll" $<TARGET_FILE_DIR:Photobooth>)
 
 #Qt
 get_target_property(Qt5_CoreLocation Qt5::Core LOCATION)

@@ -3,25 +3,83 @@
 #include "PhotoboothWindow.h"
 #include "PhotoboothContext.h"
 
-void PhotoboothWindow::onTakePicButtonClicked()
-{
-	new std::thread([&]() {
-		Sleep(3000);
-		_pCtx->onNewPicTaken(_videoInput.getPicture());
-	});
-}
+#include <QDebug>
 
 PhotoboothWindow::PhotoboothWindow(PhotoboothContext* ctx, QWidget* parent) : QWidget(parent)
 {
 	_pCtx = ctx;
 
+	_countdownTimer.setSingleShot(true);
+	connect(&_countdownTimer, &QTimer::timeout, this, [&]()
+	{
+		_countdownValue--;
+		_countdownLabel.setText(QString("<font color='white'>" + QString::number(_countdownValue) + "</font>"));
+		if (_countdownValue > 0)
+		{
+			_countdownLabel.show();
+			_stackedLayout.setStackingMode(QStackedLayout::StackAll);
+			_stackedLayout.setCurrentWidget(&_countdownLabel);
+			_countdownTimer.start(1000);
+		}
+		else
+		{
+			_countdownLabel.hide();
+			_stackedLayout.setCurrentWidget(&_videoInput);
+			_stackedLayout.setStackingMode(QStackedLayout::StackOne);
+			emit picTakenSignal(_videoInput.getPicture());
+		}
+	});
+
 	_takePicButton.setText("Take picture");
 
 	_videoInput.setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
 
-	_mainLayout.addWidget(&_videoInput);
+	_stackedLayout.addWidget(&_videoInput);
+
+	QFont font = _countdownLabel.font();
+	font.setPointSize(152);
+	font.setBold(true);
+	_countdownLabel.setFont(font);
+	_countdownLabel.setAlignment(Qt::AlignCenter);
+	_stackedLayout.addWidget(&_countdownLabel);
+
+	_stackedLayout.addWidget(&_frozenImageLabel);
+	_stackedLayout.setCurrentWidget(&_videoInput);
+
+	_mainLayout.addLayout(&_stackedLayout);
 	_mainLayout.addWidget(&_takePicButton);
 	setLayout(&_mainLayout);
 
-	connect(&_takePicButton, &QPushButton::clicked, this, &PhotoboothWindow::onTakePicButtonClicked);
+	connect(&_takePicButton, &QPushButton::clicked, this, [&]() 
+	{ 
+		if (_newPicture == false)
+		{
+			showCountdown();
+			_newPicture = true;
+			_takePicButton.setText("Take a new picture");
+		}
+		else
+		{
+			showCamera();
+			_newPicture = false;
+			_takePicButton.setText("Take picture");
+		}
+	});
+}
+
+void PhotoboothWindow::showImage(const QImage& image)
+{
+	_frozenImageLabel.setPixmap(QPixmap::fromImage(image));
+	_stackedLayout.setCurrentWidget(&_frozenImageLabel);
+}
+
+void PhotoboothWindow::showCamera()
+{
+	_stackedLayout.setCurrentWidget(&_videoInput);
+}
+
+void PhotoboothWindow::showCountdown()
+{
+	_countdownValue = 4;
+	_countdownTimer.start(1);
 }

@@ -1,6 +1,11 @@
+#pragma once
+
 #include "opencv2/opencv.hpp"
 #include <thread>
 #include "QObject"
+#include "QTimer"
+#include "QVector"
+#include <time.h>
 
 class BackgroundSwitcher : public QObject
 {
@@ -8,21 +13,32 @@ class BackgroundSwitcher : public QObject
 
 signals:
 
-	void backgroundSwitched();
+	void imageProcessed();
+
+	void backgroundSwitched(cv::Mat newImage);
 
 public:
 
 	BackgroundSwitcher();
 
-	void switchBackground(cv::Mat original, cv::Mat background);
+	void processNewFrame(cv::Mat frame);
 
-	void postprocess(cv::Mat& markers, const std::vector<cv::Mat>& outs);
+	void switchBackground(cv::Mat background);
 
-public:
+	void switchBackgroundRoulette(QString backgroundsFolder);
 
-	cv::Mat _processedImage;
+	void postprocess(const std::vector<cv::Mat>& outs);
 
 private:
 
+	cv::Mat _original;
+	cv::Mat _markers;
+
 	cv::dnn::dnn4_v20200609::Net _net;
+
+	QTimer _rouletteTimer;
+	QStringList _rouletteFiles;
+	int _lastRouletteIndex;
+	int _rouletteTime;
+	clock_t _rouletteStartTime;
 };

@@ -1,5 +1,6 @@
 #include "windows.h"
 #include "VideoInput.h"
+#include <QDebug>
 
 void VideoInput::onNewImage()
 {
@@ -37,11 +38,15 @@ void VideoInput::captureThread()
 	while (_catpuring)
 	{
 		cv::Mat temp;
-		_capture.read(temp);
-		cv::resize(temp, _image, cv::Size(1920, 1080));
-
-		emit newImage();
-
+		if (_capture.read(temp))
+		{
+			cv::resize(temp, _image, cv::Size(1920, 1080));
+			emit newImage();
+		}
+		else
+		{
+			qDebug() << "Could not read frame";
+		}
 		Sleep(30);
 	}
 }

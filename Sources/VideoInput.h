@@ -1,3 +1,5 @@
+#pragma once
+
 #include "QLabel"
 #include "opencv2/opencv.hpp"
 #include <thread>
