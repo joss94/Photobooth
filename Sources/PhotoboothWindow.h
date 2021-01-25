@@ -41,7 +41,10 @@ private:
 	VideoInput _videoInput;
 	QLabel _countdownLabel;
 	QLabel _frozenImageLabel;
+
+	QHBoxLayout _buttonsLayout;
 	QPushButton _takePicButton;
+	QPushButton _showMosaicButton;
 
 	QTimer _countdownTimer;
 	int _countdownValue;

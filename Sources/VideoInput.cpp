@@ -37,10 +37,10 @@ void VideoInput::captureThread()
 	_catpuring = true;
 	while (_catpuring)
 	{
-		cv::Mat temp;
-		if (_capture.read(temp))
+		//cv::Mat temp;
+		if (_capture.read(_image))
 		{
-			cv::resize(temp, _image, cv::Size(1920, 1080));
+			//cv::resize(temp, _image, cv::Size(1920, 1080));
 			emit newImage();
 		}
 		else

@@ -5,6 +5,7 @@
 
 class PhotoboothWindow;
 class BackgroundSwitcher;
+class MosaicBuilder;
 
 class PhotoboothContext : public QObject
 {
@@ -18,12 +19,15 @@ public:
 
 	void onNewPicTaken(cv::Mat picture);
 
-private slots:
+public slots:
 
 	void onBackgroundSwitched(cv::Mat image);
+
+	void onShowMosaicClicked();
 
 private:
 
 	PhotoboothWindow* _pWindow = nullptr;
 	BackgroundSwitcher* _pSwitcher = nullptr;
+	MosaicBuilder* _pBuilder = nullptr;
 };

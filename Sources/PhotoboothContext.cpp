@@ -3,10 +3,16 @@
 #include "BackgroundSwitcher.h"
 
 #include "QApplication"
+#include "MosaicBuilder.h"
 
 PhotoboothContext::PhotoboothContext()
 {
 	_pSwitcher = new BackgroundSwitcher();
+	_pBuilder = new MosaicBuilder();
+
+	cv::Mat base = cv::imread("C:\\Users\\josselin_manceau\\Desktop\\Perso\\Photobooth\\photos\\IMG_20190424_121718.jpg");
+	_pBuilder->setBaseImage(base);
+	_pBuilder->setTilesDirectory("C:\\Users\\josselin_manceau\\Desktop\\Perso\\Photobooth\\photos_finales\\");
 
 	_pWindow = new PhotoboothWindow(this);
 	_pWindow->show();
@@ -19,11 +25,11 @@ PhotoboothContext::PhotoboothContext()
 
 	connect(_pSwitcher, &BackgroundSwitcher::imageProcessed,
 		this, [&]() {_pSwitcher->switchBackgroundRoulette("C:/backgrounds"); });
-
 }
 
 PhotoboothContext::~PhotoboothContext()
 {
+	delete _pBuilder;
 	delete _pSwitcher;
 	delete _pWindow;
 }
@@ -45,4 +51,10 @@ void PhotoboothContext::onNewPicTaken(cv::Mat picture)
 void PhotoboothContext::onBackgroundSwitched(cv::Mat image)
 {
 	_pWindow->showImage(QImage(image.data, image.cols, image.rows, QImage::Format_BGR888));
+}
+
+void PhotoboothContext::onShowMosaicClicked()
+{
+	cv::Mat mosaic = _pBuilder->refreshImage();
+	_pWindow->showImage(QImage(mosaic.data, mosaic.cols, mosaic.rows, QImage::Format_BGR888));
 }

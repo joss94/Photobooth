@@ -30,8 +30,6 @@ PhotoboothWindow::PhotoboothWindow(PhotoboothContext* ctx, QWidget* parent) : QW
 		}
 	});
 
-	_takePicButton.setText("Take picture");
-
 	_videoInput.setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
 
 	_stackedLayout.addWidget(&_videoInput);
@@ -47,7 +45,13 @@ PhotoboothWindow::PhotoboothWindow(PhotoboothContext* ctx, QWidget* parent) : QW
 	_stackedLayout.setCurrentWidget(&_videoInput);
 
 	_mainLayout.addLayout(&_stackedLayout);
-	_mainLayout.addWidget(&_takePicButton);
+
+	_takePicButton.setText("Take picture");
+	_buttonsLayout.addWidget(&_takePicButton);
+	_showMosaicButton.setText("Show mosaic");
+	_buttonsLayout.addWidget(&_showMosaicButton);
+	_mainLayout.addLayout(&_buttonsLayout);
+
 	setLayout(&_mainLayout);
 
 	connect(&_takePicButton, &QPushButton::clicked, this, [&]() 
@@ -65,11 +69,14 @@ PhotoboothWindow::PhotoboothWindow(PhotoboothContext* ctx, QWidget* parent) : QW
 			_takePicButton.setText("Take picture");
 		}
 	});
+
+	connect(&_showMosaicButton, &QPushButton::clicked, _pCtx, &PhotoboothContext::onShowMosaicClicked);
 }
 
 void PhotoboothWindow::showImage(const QImage& image)
 {
-	_frozenImageLabel.setPixmap(QPixmap::fromImage(image));
+	_frozenImageLabel.setScaledContents(true);
+	_frozenImageLabel.setPixmap(QPixmap::fromImage(image).scaled(_frozenImageLabel.size()));
 	_stackedLayout.setCurrentWidget(&_frozenImageLabel);
 }
 
