@@ -25,30 +25,36 @@ public:
 
 	void showImage(const QImage& image);
 
-	void showCamera();
+	void showInstuctions();
+
+	void resizeEvent(QResizeEvent* event) override;
 
 private:
 
 	void showCountdown();
 
+	void hideCountdown();
+
+	cv::Mat takePicture();
+
 private:
+
+	cv::Mat _testPic;
 
 	PhotoboothContext* _pCtx = nullptr;
 
 	QVBoxLayout _mainLayout;
 	QStackedLayout _stackedLayout;
-
-	VideoInput _videoInput;
+	
+	QLabel _instructionsLabel;
 	QLabel _countdownLabel;
 	QLabel _frozenImageLabel;
 
-	QHBoxLayout _buttonsLayout;
-	QPushButton _takePicButton;
-	QPushButton _showMosaicButton;
+	QPushButton* _takePicButton = nullptr;
 
 	QTimer _countdownTimer;
 	int _countdownValue;
 
-	bool _newPicture = false;
+	bool _takingPicture = false;
 
 };

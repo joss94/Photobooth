@@ -1,1 +1,2 @@
 build/
+Resources/mask-rcnn-coco/frozen_inference_graph_deeplab.pb

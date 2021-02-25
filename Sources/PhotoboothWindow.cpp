@@ -4,10 +4,15 @@
 #include "PhotoboothContext.h"
 
 #include <QDebug>
+#include <QEventLoop>
+#include "qevent.h"
+#include "PhotoboothSettings.h"
 
 PhotoboothWindow::PhotoboothWindow(PhotoboothContext* ctx, QWidget* parent) : QWidget(parent)
 {
 	_pCtx = ctx;
+
+	_testPic = cv::imread("C:/users/josselin_manceau/Desktop/Perso/Photobooth/joss_et_oriane.jpg");
 
 	_countdownTimer.setSingleShot(true);
 	connect(&_countdownTimer, &QTimer::timeout, this, [&]()
@@ -16,23 +21,32 @@ PhotoboothWindow::PhotoboothWindow(PhotoboothContext* ctx, QWidget* parent) : QW
 		_countdownLabel.setText(QString("<font color='white'>" + QString::number(_countdownValue) + "</font>"));
 		if (_countdownValue > 0)
 		{
-			_countdownLabel.show();
-			_stackedLayout.setStackingMode(QStackedLayout::StackAll);
-			_stackedLayout.setCurrentWidget(&_countdownLabel);
+			showCountdown();
 			_countdownTimer.start(1000);
 		}
 		else
 		{
-			_countdownLabel.hide();
-			_stackedLayout.setCurrentWidget(&_videoInput);
-			_stackedLayout.setStackingMode(QStackedLayout::StackOne);
-			emit picTakenSignal(_videoInput.getPicture());
+			//cv::Mat pic = takePicture();
+			cv::Mat pic = _testPic;
+
+			if (pic.rows > 0)
+			{
+				emit picTakenSignal(pic.clone());
+			}
+
+			_takingPicture = false;
+			hideCountdown();
 		}
 	});
 
-	_videoInput.setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
+	_instructionsLabel.setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
 
-	_stackedLayout.addWidget(&_videoInput);
+	_instructionsLabel.setScaledContents(true);
+	QPixmap p;
+	p.load("C:/Dev/photobooth/Resources/instructions_black.jpg");
+	_instructionsLabel.setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+	_instructionsLabel.setPixmap(p);
+	_stackedLayout.addWidget(&_instructionsLabel);
 
 	QFont font = _countdownLabel.font();
 	font.setPointSize(152);
@@ -42,35 +56,43 @@ PhotoboothWindow::PhotoboothWindow(PhotoboothContext* ctx, QWidget* parent) : QW
 	_stackedLayout.addWidget(&_countdownLabel);
 
 	_stackedLayout.addWidget(&_frozenImageLabel);
-	_stackedLayout.setCurrentWidget(&_videoInput);
+	_stackedLayout.setCurrentWidget(&_instructionsLabel);
 
+	_stackedLayout.setMargin(0);
 	_mainLayout.addLayout(&_stackedLayout);
 
-	_takePicButton.setText("Take picture");
-	_buttonsLayout.addWidget(&_takePicButton);
-	_showMosaicButton.setText("Show mosaic");
-	_buttonsLayout.addWidget(&_showMosaicButton);
-	_mainLayout.addLayout(&_buttonsLayout);
-
+	_mainLayout.setMargin(0);
 	setLayout(&_mainLayout);
 
-	connect(&_takePicButton, &QPushButton::clicked, this, [&]() 
+	_takePicButton = new QPushButton(this);
+	_takePicButton->setGeometry(50, 50, 100, 100);
+	_takePicButton->setIcon(QIcon(QPixmap("C:/Dev/photobooth/Resources/camera.png")));
+	_takePicButton->setIconSize(QSize(70, 70));
+	_takePicButton->show();
+	_takePicButton->raise();
+
+	_takePicButton->setStyleSheet("\
+		QPushButton {\
+			background-color: #fff;\
+			border: 2px solid #555;\
+			border-radius: 50px;\
+			padding: 5px;\
+		}\
+		\
+		QPushButton:hover{\
+			background-color: #888;\
+		}");
+
+	connect(_takePicButton, &QPushButton::clicked, this, [&]() 
 	{ 
-		if (_newPicture == false)
+		//_pCtx->onShowMosaicClicked();
+		if (!_takingPicture)
 		{
-			showCountdown();
-			_newPicture = true;
-			_takePicButton.setText("Take a new picture");
-		}
-		else
-		{
-			showCamera();
-			_newPicture = false;
-			_takePicButton.setText("Take picture");
+			_takingPicture = true;
+			_countdownValue = 4;
+			_countdownTimer.start(1);
 		}
 	});
-
-	connect(&_showMosaicButton, &QPushButton::clicked, _pCtx, &PhotoboothContext::onShowMosaicClicked);
 }
 
 void PhotoboothWindow::showImage(const QImage& image)
@@ -78,15 +100,68 @@ void PhotoboothWindow::showImage(const QImage& image)
 	_frozenImageLabel.setScaledContents(true);
 	_frozenImageLabel.setPixmap(QPixmap::fromImage(image).scaled(_frozenImageLabel.size()));
 	_stackedLayout.setCurrentWidget(&_frozenImageLabel);
+	_takePicButton->raise();
 }
 
-void PhotoboothWindow::showCamera()
+void PhotoboothWindow::showInstuctions()
 {
-	_stackedLayout.setCurrentWidget(&_videoInput);
+	_stackedLayout.setCurrentWidget(&_instructionsLabel);
+	_takePicButton->raise();
+	_stackedLayout.setStackingMode(QStackedLayout::StackOne);
+}
+
+void PhotoboothWindow::resizeEvent(QResizeEvent* event)
+{
+	QWidget::resizeEvent(event);
+
+	if (_takePicButton != nullptr)
+	{
+		_takePicButton->setGeometry(
+			(event->size().width() - _takePicButton->width()) / 2,
+			(event->size().height() - _takePicButton->height()) - 20,
+			_takePicButton->width(),
+			_takePicButton->height());
+	}
 }
 
 void PhotoboothWindow::showCountdown()
 {
-	_countdownValue = 4;
-	_countdownTimer.start(1);
+	_countdownLabel.show();
+	_stackedLayout.setStackingMode(QStackedLayout::StackAll);
+	_stackedLayout.setCurrentWidget(&_countdownLabel);
+	_takePicButton->raise();
+}
+
+void PhotoboothWindow::hideCountdown()
+{
+	_countdownLabel.hide();
+}
+
+cv::Mat PhotoboothWindow::takePicture()
+{
+	QNetworkAccessManager* manager = new QNetworkAccessManager(this);
+
+	QString req = _pCtx->getSettings()->settings().cameraURL;
+	qDebug() << "Sending request : " << req;
+	auto reply = manager->get(QNetworkRequest(QUrl(req)));
+
+	QEventLoop loop;
+	connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+	loop.exec();
+
+	QByteArray bytes = reply->readAll();
+
+	cv::Mat pic;
+	if (!bytes.isEmpty())
+	{
+		qDebug() << "Received image !";
+		cv::imdecode(std::vector<uchar>(bytes.begin(), bytes.end()), cv::IMREAD_COLOR, &pic);
+	}
+	else
+	{
+		qDebug() << "Empty response from camera";
+		showInstuctions();
+	}
+
+	return pic;
 }

@@ -5,49 +5,38 @@
 #include <QDir>
 #include <algorithm>
 
+#include <cstdio>
+#include <iostream>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <array>
+#include "QDateTime"
+#include "QDebug.h"
+#include "windows.h"
+
 using namespace cv;
 
-BackgroundSwitcher::BackgroundSwitcher()
+std::string executeCommand(const char* cmd) 
 {
-	_net = dnn::readNetFromTensorflow(
-		"c:/Dev/Photobooth/Resources/mask-rcnn-coco/frozen_inference_graph.pb",
-		"c:/Dev/Photobooth/Resources/mask-rcnn-coco/mask_rcnn_inception_v2_coco_2018_01_28.pbtxt"
-	);
+	std::cout << "Executing command : " << cmd << std::endl;
 
-	_rouletteTimer.setSingleShot(true);
-	connect(&_rouletteTimer, &QTimer::timeout, this, [&]()
-	{
-		if (clock() - _rouletteStartTime < 10000 && _rouletteTime < 2000)
-		{
-			clock_t c = clock();
-			int index;
-			do
-			{
-				index = rand() % _rouletteFiles.size();
-			} while (index == _lastRouletteIndex);
+	std::array<char, 128> buffer;
+	std::string result;
+	std::unique_ptr<FILE, decltype(&_pclose)> pipe(_popen(cmd, "r"), _pclose);
+	if (!pipe) {
+		throw std::runtime_error("popen() failed!");
+	}
+	while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+		result += buffer.data();
+	}
+	return result;
 
-			_lastRouletteIndex = index;
-			cv::Mat b = cv::imread(_rouletteFiles[index].toStdString());
-			switchBackground(b);
-
-			_rouletteTime = 5.0 + 1.1 * _rouletteTime;
-			_rouletteTimer.start(std::max(0, int(_rouletteTime - (clock() - c))));
-		}
-	});
 }
 
-void BackgroundSwitcher::processNewFrame(cv::Mat frame)
+void BackgroundSwitcher::onOutputReceived(QString path)
 {
-	_original = frame.clone();
-
-	// Find persons with Mask RCNN
-	auto blob = dnn::blobFromImage(frame, 1.0, cv::Size(frame.cols, frame.rows), cv::Scalar(), true);
-	_net.setInput(blob);
-
-	std::vector<cv::Mat> r;
-	std::vector<cv::String> outLayers = { "detection_out_final", "detection_masks" };
-
-	_net.forward(r, outLayers);
+	auto r = cv::imread(path.toStdString());
 
 	// Fill markers based on Mask RCNN results
 	postprocess(r);
@@ -55,28 +44,92 @@ void BackgroundSwitcher::processNewFrame(cv::Mat frame)
 	emit imageProcessed();
 }
 
-void BackgroundSwitcher::switchBackground(Mat background)
+BackgroundSwitcher::BackgroundSwitcher(QString scriptPath, QString modelPath) : 
+	_scriptPath(scriptPath), _modelPath(modelPath)
 {
-	// Resize background to fit image
-	cv::Mat tmp;
-	cv::resize(background, tmp, cv::Size(_original.cols, _original.rows));
+	connect(this, &BackgroundSwitcher::outputReceived, this, &BackgroundSwitcher::onOutputReceived);
+	_dnnUtilityDir = "C:/Users/josselin_manceau/Desktop/Perso/Photobooth/temp";
 
-	// Clone image for modification
-	cv::Mat out = _original.clone();
+	QDir().mkpath(_dnnUtilityDir + "/input");
+	QDir().mkpath(_dnnUtilityDir + "/output");
 
-	// Replace non person pixels by new background
-	for (int row = 0; row < _markers.rows; row++)
+	//startDNN();
+
+	_rouletteTimer.setSingleShot(true);
+	connect(&_rouletteTimer, &QTimer::timeout, this, [&]()
 	{
-		for (int col = 0; col < _markers.cols; col++)
+		if (clock() - _rouletteStartTime < 10000 && _rouletteTime < 2000)
 		{
-			if (_markers.at<int>(row, col) != 2)
-			{
-				out.at<Vec3b>(row, col) = tmp.at<Vec3b>(row, col);
-			}
-		}
-	}
+			clock_t c = clock();
 
-	emit backgroundSwitched(cv::Mat(out));
+			int index;
+			do
+			{
+				index = rand() % _rouletteFiles.size();
+			} while (index == _lastRouletteIndex);
+
+			_lastRouletteIndex = index;
+
+			cv::Mat b = cv::imread(_rouletteFiles[index].toStdString());
+
+			// If background does not have the right size, resize it and save it to avoid doing it again in the future
+			if (b.cols != 1920 || b.rows != 1080)
+			{
+				Mat tmp;
+				resize(b, tmp, cv::Size(1920, 1080));
+				b = tmp;
+				imwrite(_rouletteFiles[index].toStdString(), b);
+			}
+
+			_switched = switchBackground(b);
+
+			_rouletteTime = 1.2 * _rouletteTime;
+				
+			_rouletteTimer.start(std::max(30, int(_rouletteTime - (clock() - c))));
+		}
+		else
+		{
+			rouletteFinished(_switched);
+		}
+	});
+}
+
+void BackgroundSwitcher::processNewFrame(cv::Mat frame)
+{
+	// Background switcher only works with 1920x1080 images for optimization purpose
+	resize(frame, _original, cv::Size(1920, 1080));
+
+	// Copy image to input dirs, python script will detecet it automatically
+	QString inputName = QDateTime::currentDateTime().toString("yyyy_MM_dd_hh_mm_ss");
+
+	qDebug() << "Before";
+	cv::imwrite((_dnnUtilityDir + "/input/" + inputName + ".jpg").toStdString(), _original);
+	qDebug() << "After";
+
+	QString outputFile = _dnnUtilityDir + "/output/" + inputName + ".jpg";
+	// Wait for output file to appear
+	while (!QFile::exists(outputFile)) {}
+
+	Sleep(1000);
+	qDebug() << "New file received : " << outputFile;
+	emit outputReceived(outputFile);
+}
+
+cv::Mat BackgroundSwitcher::switchBackground(Mat newBackground)
+{
+	cv::Mat background;
+	newBackground.convertTo(background, CV_32FC3);
+
+	// Storage for output image
+	cv::Mat out;
+	multiply(_markersBackground, background, background);
+	add(_foreground, background, out);
+	
+	out.convertTo(out, CV_8UC3);
+
+	emit backgroundSwitched(out.clone());
+
+	return out;
 }
 
 void BackgroundSwitcher::switchBackgroundRoulette(QString backgroundsFolder)
@@ -94,77 +147,37 @@ void BackgroundSwitcher::switchBackgroundRoulette(QString backgroundsFolder)
 	}
 
 	_lastRouletteIndex = -1;
-	_rouletteTime = 1;
+	_rouletteTime = 30;
 	_rouletteStartTime = clock();
 	_rouletteTimer.start(_rouletteTime);
 }
 
 // For each frame, extract the bounding box and mask for each detected object
-void BackgroundSwitcher::postprocess(const std::vector<cv::Mat>& outs)
+void BackgroundSwitcher::postprocess(const cv::Mat& out)
 {
-	// Create markers, all background at first
-	_markers = Mat(_original.rows, _original.cols, CV_32S, Scalar(0));
+	out.convertTo(_markersForeground, CV_32FC3, 1.0 / 255);
 
-	Mat outDetections = outs[0];
-	Mat outMasks = outs[1];
+	_markersBackground = Scalar::all(1.0) - _markersForeground;		
 
-	// Output size of masks is NxCxHxW where
-	// N - number of detected boxes
-	// C - number of classes (excluding background)
-	// HxW - segmentation shape
-	const int numDetections = outDetections.size[2];
-	const int numClasses = outMasks.size[1];
+	_original.convertTo(_foreground, CV_32FC3);
+	multiply(_markersForeground, _foreground, _foreground);
+}
 
-	outDetections = outDetections.reshape(1, outDetections.total() / 7);
-	for (int i = 0; i < numDetections; ++i)
-	{
-		float score = outDetections.at<float>(i, 2);
-		if (score > 0)
-		{
-			// Extract the bounding box
-			int classId = static_cast<int>(outDetections.at<float>(i, 1));
+void BackgroundSwitcher::startDNN()
+{	
+	QString cmd = QString("%1 -m %2 -i %3 -o %4")
+		.arg(_scriptPath)
+		.arg(_modelPath)
+		.arg(_dnnUtilityDir + "/input")
+		.arg(_dnnUtilityDir + "/output");
 
-			if (classId == 0)
-			{
-				int left = static_cast<int>(_markers.cols * outDetections.at<float>(i, 3));
-				int top = static_cast<int>(_markers.rows * outDetections.at<float>(i, 4));
-				int right = static_cast<int>(_markers.cols * outDetections.at<float>(i, 5));
-				int bottom = static_cast<int>(_markers.rows * outDetections.at<float>(i, 6));
-				left = max(0, min(left, _markers.cols - 1));
-				top = max(0, min(top, _markers.rows - 1));
-				right = max(0, min(right, _markers.cols - 1));
-				bottom = max(0, min(bottom, _markers.rows - 1));
-				Rect box = Rect(left, top, right - left + 1, bottom - top + 1);
+	qDebug() << cmd;
 
-				// Extract the mask for the object
-				Mat objectMask(outMasks.size[2], outMasks.size[3], CV_32F, outMasks.ptr<float>(i, classId));
-
-				// Resize the mask and fill markers
-				resize(objectMask, objectMask, Size(box.width, box.height));
-
-				for (int r = top; r < bottom; r++)
-				{
-					for (int c = left; c < right; c++)
-					{
-						float conf = objectMask.at<float>(r - top, c - left);
-						int& marker = _markers.at<int>(r, c);
-						if (marker == 0)
-						{
-							if (conf > 0.8)
-							{
-								marker = 2;
-							}
-							else if (conf < 0.7)
-							{
-								marker = 3;
-							}
-						}
-					}
-				}
-			}			
-		}
-	}
-
-	// Apply watershed for better contours
-	watershed(_original, _markers);
+	new std::thread([&]() {
+		executeCommand(QString("%1 -m %2 -i %3 -o %4")
+			.arg(_scriptPath)
+			.arg(_modelPath)
+			.arg(_dnnUtilityDir + "/input")
+			.arg(_dnnUtilityDir + "/output").toStdString().c_str());
+	});
 }

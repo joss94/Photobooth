@@ -2,37 +2,59 @@
 #include "QDir"
 
 #include <QDebug>
+#include <windows.h>
 
 using namespace cv;
+using namespace std;
 
 MosaicBuilder::MosaicBuilder()
 {
-	_mosaicSize = 1000;
+	_maxOccurence = -1;
 }
 
-void MosaicBuilder::setBaseImage(cv::Mat image)
+void MosaicBuilder::setBaseImage(QString image)
 {
-	_baseImage = image.clone();
+	cv::Mat original = imread(image.toStdString());
+	cv::resize(original, _baseImage, cv::Size(1920, 1080));
 
-	setMosaicSize(_mosaicSize);
+	setMosaicSize(86, 56);
 
-	_meanColorsOfRois.clear();
-	for (int i = 0; i < _mosaicSize; i++)
-	{
-		_meanColorsOfRois.insert(i, meanColorOfImage(_baseImage(getRoi(i))));
-	}
-
-	_mosaicImage = cv::Mat(_baseImage.rows, _baseImage.cols, CV_8UC3, Scalar(0));
+	_mosaicImage = Mat(_baseImage.rows, _baseImage.cols, CV_8UC3, Scalar(0));
 }
 
 void MosaicBuilder::setTilesDirectory(QString path)
 {
+	QDir().mkpath(path + "/resized");
+
 	_tilesDirPath = path;
 	_meanColorsOfTiles.clear();
 	refreshTiles();
 }
 
+
+void MosaicBuilder::setMosaicSize(int szW, int szH)
+{
+	_sizeW = szW;
+	_sizeH = szH;
+	_mosaicSize = _sizeW * _sizeH;
+	_roiW = int(_baseImage.cols / _sizeW) + 1;
+	_roiH = int(_baseImage.rows / _sizeH) + 1;
+
+	_roiTileMap.resize(_mosaicSize);
+}
+
+void MosaicBuilder::setMaxOccurence(int maxOccurence)
+{
+	_maxOccurence = maxOccurence;
+}
+
 cv::Mat MosaicBuilder::refreshImage()
+{
+	new std::thread(&MosaicBuilder::refreshImageThread, this);
+	return _mosaicImage;
+}
+
+cv::Mat MosaicBuilder::refreshImageThread()
 {
 	clock_t c = clock();
 
@@ -43,149 +65,219 @@ cv::Mat MosaicBuilder::refreshImage()
 	c = clock();
 
 	// Build map matching between tiles and ROIs
-	QMap<QString, QVector<int>> matches;
-	QString bestTile;
-	double bestDiff;
-	for (int i = 0; i < _mosaicSize; i++)
-	{
-		 const QColor& roiMeanColor = _meanColorsOfRois[i];
-		 bestTile = "";
-		 bestDiff = -1;
+	QVector<QString> tileMap;
+	tileMap.resize(_mosaicSize);
 
-		for (const auto& tile : _meanColorsOfTiles.keys())
+	std::sort(_matches.begin(), _matches.end(), [](const matching_scores& a, const matching_scores& b) -> bool
+	{
+		return a.score < b.score;
+	});
+
+	_mosaicImage = Mat(_baseImage.rows, _baseImage.cols, CV_8UC3, Scalar(0));
+
+	QVector<int> filledIndexes;
+	QMap<QString, int> occurences;
+
+	// Filling with radius 3
+	for (auto m : _matches)
+	{
+		if (!filledIndexes.contains(m.index))
 		{
-			const QColor& tileMeanColor = _meanColorsOfTiles[tile];
-			double d = colorDiff(tileMeanColor, roiMeanColor);
-			if (bestDiff < 0 || d < bestDiff)
+			bool usable = true;
+			int radius = 3;
+
+			// Limit on occurence
+			if (_maxOccurence > 0 && occurences[m.tileName] > _maxOccurence)
 			{
-				bestTile = tile;
-				bestDiff = d;
+				usable = false;
+			}
+
+			// One image cannot be repeated in a 3-index radius
+			if (usable)
+			{
+				for (int a = -radius; a <= radius; a++)
+				{
+					for (int b = -radius; b <= radius; b++)
+					{
+						int index = min(max(0, m.index + a + b * _sizeW), _mosaicSize - 1);
+						if (tileMap[index] == m.tileName)
+						{
+							usable = false;
+						}
+					}
+				}
+			}
+
+			if (usable)
+			{
+				// Set this new tile mapping
+				tileMap[m.index] = m.tileName;
+
+				// Set this index as filled
+				filledIndexes.push_back(m.index);
+
+				// Register tile in occurences table
+				int o = occurences.value(m.tileName, 0);
+				occurences[m.tileName] = o+1;
+
+				// ... get the corresponding ROI of base image...
+				Rect roi = getRoi(m.index);
+
+				// ... and resize the "mini-image" only if necessary...
+				cv::Mat miniTile = _miniImages[m.tileName];
+				if (miniTile.cols != roi.width || miniTile.rows != roi.height)
+				{
+					Mat tmp;
+					cv::resize(miniTile, tmp, cv::Size(roi.width, roi.height));
+					miniTile = tmp;
+				}
+
+				// ... finally copy the image
+				addWeighted(_baseImage(roi), 0.3, miniTile, 0.7, 0.0, _mosaicImage(roi));
+
+				emit mosaicUpdatedSignal(_mosaicImage);
+				Sleep(10);
 			}
 		}
 
-		matches[bestTile].push_back(i);
+		if (filledIndexes.size() == _mosaicSize)
+		{
+			break;
+		}
 	}
 
 	qDebug() << "Build map : " << clock() - c;
 	c = clock();
 
-	// Go through all images...
-	for (const QString& imgName : matches.keys())
-	{
-		cv::Mat tileImage;
-		cv::Mat miniTile;
-
-		// ... and look for the tiles where it is suppose to go ...
-		for (int index : matches[imgName])
-		{
-			// ... do something only if it is not the image already present
-			if (_roiTileMap[index] != imgName)
-			{		
-				// ... and read image only once...
-				if (tileImage.rows == 0)
-				{
-					tileImage = cv::imread(imgName.toStdString());
-				}
-				
-				// ... get the corresponding ROI of base image...
-				cv::Rect roi = getRoi(index);
-
-				// ... and resize the "mini-image" only if necessary...
-				if (miniTile.cols != roi.width || miniTile.rows != roi.height)
-				{
-					cv::resize(tileImage, miniTile, cv::Size(roi.width, roi.height));
-				}
-				
-				// ... finally copy the image and register this change in the map
-				miniTile.copyTo(_mosaicImage(roi));
-				_roiTileMap[index] = imgName;
-			}
-		}
-	}
+	// Save map for future changes
+	_roiTileMap = tileMap;
 
 	qDebug() << "Build mosaic : " << clock() - c;
 	c = clock();
 
+	cv::imwrite("test_mosaic.jpg", _mosaicImage);
 	return _mosaicImage;
-}
-
-void MosaicBuilder::setMosaicSize(int sz)
-{
-	_mosaicSize = sz;
-	_numberOfRois = int(sqrt(sz)) + 1;
-	_mosaicSize = _numberOfRois * _numberOfRois;
-	_roiW = int(_baseImage.cols / _numberOfRois);
-	_roiH = int(_baseImage.rows / _numberOfRois);
 }
 
 void MosaicBuilder::refreshTiles()
 {
 	QDir dir(_tilesDirPath);
 
+	int timeRead = 0;
+	int timeResize = 0;
+	int timeDiff = 0;
+
 	for (auto file : dir.entryList(QDir::Files))
 	{
 		QString path = _tilesDirPath + "/" + file;
-		if (!_meanColorsOfTiles.contains(path))
+
+		QString pathResized = _tilesDirPath + "/resized/" + file;
+		if (!QFile::exists(pathResized))
 		{
-			cv::Mat tileImg = cv::imread(path.toStdString());
+			Mat img = cv::imread(path.toStdString());
+			Mat imgResized;
+			cv::resize(img, imgResized, cv::Size(256, 256));
+			imwrite(pathResized.toStdString(), imgResized);
+		}
+
+		path = pathResized;
+		
+		if (!_miniImages.contains(path))
+		{
+			clock_t c = clock();
+			Mat tileImg = cv::imread(path.toStdString());
+			timeRead += clock() - c;
+
 			if (tileImg.data != NULL)
 			{
-				cv::Mat miniTile;
-				cv::resize(tileImg, miniTile, cv::Size(_roiW, _roiH));
-				_meanColorsOfTiles.insert(path, meanColorOfImage(miniTile));
+				QVector<double> scores;
+				for (int i = 0; i < _mosaicSize; i++)
+				{
+					c = clock();
+					Mat baseTile = _baseImage(getRoi(i));
+
+					Mat miniTile;
+					resize(tileImg, miniTile, cv::Size(_roiW, _roiH));
+
+					Mat miniTileBlurred;
+					cv::blur(miniTile, miniTileBlurred, cv::Size(2, 2));
+
+					_miniImages[path] = miniTileBlurred;
+					timeResize += clock() - c;
+
+					c = clock();
+					matching_scores m;
+					m.tileName = path;
+					m.index = i;
+					// Important to clone base tile here, because pointer increment is wrong
+					// if we get a sub-ROI from a bigger image
+					m.score = getMatchScore(baseTile.clone(), _miniImages[path]);;
+					_matches << m;
+					timeDiff += clock() - c;
+				}
 			}
 
 			qDebug() << "Processed " + path;
 		}
 	}
+
+	qDebug() << "Time read : " << timeRead;
+	qDebug() << "Time resize : " << timeResize;
+	qDebug() << "Time diff : " << timeDiff;
 }
 
 cv::Rect MosaicBuilder::getRoi(int index)
 {
-	int y = index / _numberOfRois;
-	int x = index - y * _numberOfRois;
+	int y = index / _sizeW;
+	int x = index - y * _sizeW;
 
-	y = std::min(y, _baseImage.rows - 2);
-	x = std::min(x, _baseImage.cols - 2);
+	y = min(y * _roiH, _baseImage.rows - 2);
+	x = min(x * _roiW, _baseImage.cols - 2);
 
-	int w = std::min(_roiW, _baseImage.cols - 1 - x * _roiW);
-	int h = std::min(_roiH, _baseImage.rows - 1 - y * _roiH);
+	int w = min(_roiW, _baseImage.cols - 1 - x);
+	int h = min(_roiH, _baseImage.rows - 1 - y);
 
-	return cv::Rect(x * _roiW, y * _roiH, w, h);
+	return Rect(x, y, w, h);
 }
 
-QColor MosaicBuilder::meanColorOfImage(cv::Mat img)
+double MosaicBuilder::getMatchScore(cv::Mat image1, cv::Mat image2)
 {
-	int r = 0;
-	int g = 0; 
-	int b = 0;
-	uchar* pixels = img.data;
-
-	int nPix = img.rows * img.cols;
-	for (int k = nPix; k--;)
+	if (image2.cols != image1.cols || image2.rows != image1.rows)
 	{
-		r += *pixels;
-		pixels++;
-
-		g += *pixels;
-		pixels++;
-
-		b += *pixels;
-		pixels++;
+		Mat tmp;
+		resize(image2, tmp, cv::Size(image1.cols, image1.rows));
+		image2 = tmp;
 	}
 
-	QColor out = QColor(r / nPix, g / nPix, b / nPix);
+	double diff = 0;
 
-	return out;
-}
+	uchar* imagePixels = image2.data;
+	uchar* basePixels = image1.data;
 
-double MosaicBuilder::colorDiff(QColor c1, QColor c2)
-{
-	double meanRed = 0.5 * (c1.red() + c2.red());
+	int N = image1.rows * image1.cols;
+	double Ninv = 1.0 / N;
 
-	double dr = c1.red() - c2.red();
-	double dg = c1.green() - c2.green();
-	double db = c1.blue() - c2.blue();
+	double diffR, diffG, diffB;
 
-	return sqrt((2.0 + meanRed / 256) * dr * dr + 4.0 * dg * dg + (2.0 + (255.0 - meanRed) / 256) * db * db);
+	for (int i = image1.rows * image1.cols; i--;)
+	{
+		diffR = (*imagePixels - *basePixels);
+
+		imagePixels++;
+		basePixels++;
+
+		diffG = (*imagePixels - *basePixels);
+
+		imagePixels++;
+		basePixels++;
+
+		diffB = (*imagePixels - *basePixels);
+
+		imagePixels++;
+		basePixels++;
+
+		diff += sqrt(diffR * diffR + diffG * diffG + diffB * diffB);
+	}
+
+	return diff * Ninv;
 }

@@ -17,24 +17,41 @@ signals:
 
 	void backgroundSwitched(cv::Mat newImage);
 
+	void rouletteFinished(cv::Mat finalImage);
+
+	void outputReceived(QString path);
+
+private slots:
+
+	void onOutputReceived(QString path);
+
 public:
 
-	BackgroundSwitcher();
+	BackgroundSwitcher(QString scriptPath, QString modelPath);
 
 	void processNewFrame(cv::Mat frame);
 
-	void switchBackground(cv::Mat background);
+	cv::Mat switchBackground(cv::Mat background);
 
 	void switchBackgroundRoulette(QString backgroundsFolder);
 
-	void postprocess(const std::vector<cv::Mat>& outs);
+	void postprocess(const cv::Mat& out);
 
 private:
 
-	cv::Mat _original;
-	cv::Mat _markers;
+	void startDNN();
 
-	cv::dnn::dnn4_v20200609::Net _net;
+private:
+
+	QString _dnnUtilityDir;
+	QString _modelPath;
+	QString _scriptPath;
+
+	cv::Mat _original;
+	cv::Mat _markersForeground;
+	cv::Mat _markersBackground;
+	cv::Mat _foreground;
+	cv::Mat _switched;
 
 	QTimer _rouletteTimer;
 	QStringList _rouletteFiles;

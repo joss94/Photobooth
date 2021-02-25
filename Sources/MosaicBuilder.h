@@ -6,21 +6,37 @@
 #include "QString"
 #include "QColor"
 
+struct matching_scores
+{
+	QString tileName;
+	int index;
+	double score;
+};
+
 class MosaicBuilder : public QObject
 {
 	Q_OBJECT;
+
+signals:
+
+	void mosaicUpdatedSignal(cv::Mat mosaic);
 
 public:
 
 	MosaicBuilder();
 
-	void setBaseImage(cv::Mat image);
+	void setBaseImage(QString path);
 
 	void setTilesDirectory(QString path);
 
 	cv::Mat refreshImage();
 
-	void setMosaicSize(int sz);
+	cv::Mat refreshImageThread();
+
+	void setMosaicSize(int szW, int szH);
+
+	void setMaxOccurence(int maxOccurence);
+
 
 private:
 
@@ -28,16 +44,17 @@ private:
 
 	cv::Rect getRoi(int index);
 
-	QColor meanColorOfImage(cv::Mat img);
-
-	double colorDiff(QColor c1, QColor c2);
+	double getMatchScore(cv::Mat image1, cv::Mat image2);
 
 private:
 
+	int _sizeW;
+	int _sizeH;
 	int _mosaicSize;
-	int _numberOfRois;
 	int _roiW;
 	int _roiH;
+
+	int _maxOccurence;
 
 	cv::Mat _baseImage;
 	cv::Mat _mosaicImage;
@@ -45,6 +62,9 @@ private:
 	QString _tilesDirPath;
 
 	QMap<QString, QColor> _meanColorsOfTiles;
-	QMap<int, QColor> _meanColorsOfRois;
-	QMap<int, QString> _roiTileMap;
+	QVector<QString> _roiTileMap;
+
+	QVector<matching_scores> _matches;
+
+	QMap<QString, cv::Mat> _miniImages;
 };
