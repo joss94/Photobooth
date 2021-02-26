@@ -21,6 +21,7 @@ struct photobooth_settings_t
 	QString cameraURL = "192.168.0.12:5000/takepicture";
 	QString baseImagePath = "";
 	int maxOccurence = 10;
+	double baseOpacity = 0.3;
 
 	void loadFromJson(const QJsonObject& json)
 	{
@@ -32,6 +33,7 @@ struct photobooth_settings_t
 		cameraURL = json["camera_url"].toString(cameraURL);
 		baseImagePath = json["base_image"].toString(baseImagePath);
 		maxOccurence = json["max_occurence"].toInt(maxOccurence);
+		baseOpacity = json["base_opacity"].toDouble(baseOpacity);
 	};
 
 	QJsonObject toJson() const
@@ -46,6 +48,7 @@ struct photobooth_settings_t
 		v["camera_url"] = cameraURL;
 		v["base_image"] = baseImagePath;
 		v["max_occurence"] = maxOccurence;
+		v["base_opacity"] = baseOpacity;
 
 		return v;
 	};

@@ -24,9 +24,10 @@ PhotoboothContext::PhotoboothContext()
 	_pBuilder->setBaseImage(_pSettings->settings().baseImagePath);
 	_pBuilder->setTilesDirectory(_pSettings->settings().modifPicturesDir);
 	_pBuilder->setMaxOccurence(_pSettings->settings().maxOccurence);
+	_pBuilder->setBaseOpacity(_pSettings->settings().baseOpacity);
 
 	_pWindow = new PhotoboothWindow(this);
-	_pWindow->show();
+	_pWindow->showFullScreen();
 
 	connect(_pWindow, &PhotoboothWindow::picTakenSignal,
 		this, &PhotoboothContext::onNewPicTaken);
@@ -49,6 +50,7 @@ PhotoboothContext::~PhotoboothContext()
 	delete _pBuilder;
 	delete _pSwitcher;
 	delete _pWindow;
+	delete _pSettings;
 }
 
 PhotoboothSettings* PhotoboothContext::getSettings()

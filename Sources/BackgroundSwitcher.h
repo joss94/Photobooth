@@ -29,6 +29,8 @@ public:
 
 	BackgroundSwitcher(QString scriptPath, QString modelPath);
 
+	~BackgroundSwitcher();
+
 	void processNewFrame(cv::Mat frame);
 
 	cv::Mat switchBackground(cv::Mat background);
@@ -58,4 +60,6 @@ private:
 	int _lastRouletteIndex;
 	int _rouletteTime;
 	clock_t _rouletteStartTime;
+
+	std::thread* _pDnnThread = nullptr;
 };

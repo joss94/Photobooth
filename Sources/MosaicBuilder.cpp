@@ -10,12 +10,13 @@ using namespace std;
 MosaicBuilder::MosaicBuilder()
 {
 	_maxOccurence = -1;
+	_baseOpacity = 0.3;
 }
 
 void MosaicBuilder::setBaseImage(QString image)
 {
 	cv::Mat original = imread(image.toStdString());
-	cv::resize(original, _baseImage, cv::Size(1920, 1080));
+	cv::resize(original, _baseImage, cv::Size(1920 * 3, 1080 * 3));
 
 	setMosaicSize(86, 56);
 
@@ -48,6 +49,14 @@ void MosaicBuilder::setMaxOccurence(int maxOccurence)
 	_maxOccurence = maxOccurence;
 }
 
+void MosaicBuilder::setBaseOpacity(double opacity)
+{
+	if (opacity >= 0.0 && opacity <= 1.0)
+	{
+		_baseOpacity = opacity;
+	}
+}
+
 cv::Mat MosaicBuilder::refreshImage()
 {
 	new std::thread(&MosaicBuilder::refreshImageThread, this);
@@ -77,6 +86,8 @@ cv::Mat MosaicBuilder::refreshImageThread()
 
 	QVector<int> filledIndexes;
 	QMap<QString, int> occurences;
+
+	int refreshPreview = 0;
 
 	// Filling with radius 3
 	for (auto m : _matches)
@@ -133,10 +144,18 @@ cv::Mat MosaicBuilder::refreshImageThread()
 				}
 
 				// ... finally copy the image
-				addWeighted(_baseImage(roi), 0.3, miniTile, 0.7, 0.0, _mosaicImage(roi));
+				addWeighted(_baseImage(roi), _baseOpacity, miniTile, 1.0 - _baseOpacity, 0.0, _mosaicImage(roi));
 
-				emit mosaicUpdatedSignal(_mosaicImage);
-				Sleep(10);
+				// Refresh preview every 5 tiles to avoid taking too much time
+				refreshPreview = (refreshPreview + +1) % 7;
+				if (refreshPreview == 0)
+				{
+					// Need to resize mosaic because if it is too large it will make UI thread lag
+					cv::Mat resizedMosaic;
+					cv::resize(_mosaicImage, resizedMosaic, cv::Size(1920, 1080));
+					emit mosaicUpdatedSignal(resizedMosaic.clone());
+					Sleep(10);
+				}
 			}
 		}
 
@@ -176,7 +195,7 @@ void MosaicBuilder::refreshTiles()
 		{
 			Mat img = cv::imread(path.toStdString());
 			Mat imgResized;
-			cv::resize(img, imgResized, cv::Size(256, 256));
+			cv::resize(img, imgResized, cv::Size(128, 128));
 			imwrite(pathResized.toStdString(), imgResized);
 		}
 

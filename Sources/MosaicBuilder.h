@@ -37,6 +37,7 @@ public:
 
 	void setMaxOccurence(int maxOccurence);
 
+	void setBaseOpacity(double opacity);
 
 private:
 
@@ -55,8 +56,10 @@ private:
 	int _roiH;
 
 	int _maxOccurence;
+	double _baseOpacity;
 
 	cv::Mat _baseImage;
+	cv::Mat _largeBaseImage;
 	cv::Mat _mosaicImage;
 
 	QString _tilesDirPath;

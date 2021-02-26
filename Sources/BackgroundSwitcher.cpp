@@ -53,7 +53,7 @@ BackgroundSwitcher::BackgroundSwitcher(QString scriptPath, QString modelPath) :
 	QDir().mkpath(_dnnUtilityDir + "/input");
 	QDir().mkpath(_dnnUtilityDir + "/output");
 
-	//startDNN();
+	startDNN();
 
 	_rouletteTimer.setSingleShot(true);
 	connect(&_rouletteTimer, &QTimer::timeout, this, [&]()
@@ -94,6 +94,14 @@ BackgroundSwitcher::BackgroundSwitcher(QString scriptPath, QString modelPath) :
 	});
 }
 
+BackgroundSwitcher::~BackgroundSwitcher()
+{
+	if (_pDnnThread != nullptr)
+	{
+		delete _pDnnThread;
+	}
+}
+
 void BackgroundSwitcher::processNewFrame(cv::Mat frame)
 {
 	// Background switcher only works with 1920x1080 images for optimization purpose
@@ -102,17 +110,31 @@ void BackgroundSwitcher::processNewFrame(cv::Mat frame)
 	// Copy image to input dirs, python script will detecet it automatically
 	QString inputName = QDateTime::currentDateTime().toString("yyyy_MM_dd_hh_mm_ss");
 
-	qDebug() << "Before";
 	cv::imwrite((_dnnUtilityDir + "/input/" + inputName + ".jpg").toStdString(), _original);
-	qDebug() << "After";
+	new std::thread([&](QString name) 
+	{
+		QString outputFile = _dnnUtilityDir + "/output/" + name + ".jpg";
+		clock_t c = clock();
 
-	QString outputFile = _dnnUtilityDir + "/output/" + inputName + ".jpg";
-	// Wait for output file to appear
-	while (!QFile::exists(outputFile)) {}
+		bool outputFound = false;
+		// Wait for output file to appear, with 15s timeout
+		while (!outputFound && (clock() - c) < 15000) 
+		{
+			outputFound = QFile::exists(outputFile);
+			Sleep(20);
+		}
 
-	Sleep(1000);
-	qDebug() << "New file received : " << outputFile;
-	emit outputReceived(outputFile);
+		if (outputFound)
+		{
+			Sleep(1000);
+			qDebug() << "New file received : " << outputFile;
+			emit outputReceived(outputFile);
+		}
+		else
+		{
+			qDebug() << "Never found output";
+		}
+	}, inputName);
 }
 
 cv::Mat BackgroundSwitcher::switchBackground(Mat newBackground)
@@ -173,7 +195,7 @@ void BackgroundSwitcher::startDNN()
 
 	qDebug() << cmd;
 
-	new std::thread([&]() {
+	_pDnnThread = new std::thread([&]() {
 		executeCommand(QString("%1 -m %2 -i %3 -o %4")
 			.arg(_scriptPath)
 			.arg(_modelPath)

@@ -12,7 +12,7 @@ PhotoboothWindow::PhotoboothWindow(PhotoboothContext* ctx, QWidget* parent) : QW
 {
 	_pCtx = ctx;
 
-	_testPic = cv::imread("C:/users/josselin_manceau/Desktop/Perso/Photobooth/joss_et_oriane.jpg");
+	//_testPic = cv::imread("C:/users/josselin_manceau/Desktop/Perso/Photobooth/joss_et_oriane.jpg");
 
 	_countdownTimer.setSingleShot(true);
 	connect(&_countdownTimer, &QTimer::timeout, this, [&]()
@@ -26,8 +26,8 @@ PhotoboothWindow::PhotoboothWindow(PhotoboothContext* ctx, QWidget* parent) : QW
 		}
 		else
 		{
-			//cv::Mat pic = takePicture();
-			cv::Mat pic = _testPic;
+			cv::Mat pic = takePicture();
+			//cv::Mat pic = _testPic;
 
 			if (pic.rows > 0)
 			{
@@ -43,7 +43,7 @@ PhotoboothWindow::PhotoboothWindow(PhotoboothContext* ctx, QWidget* parent) : QW
 
 	_instructionsLabel.setScaledContents(true);
 	QPixmap p;
-	p.load("C:/Dev/photobooth/Resources/instructions_black.jpg");
+	p.load("C:/Dev/photobooth/Resources/instructions.jpg");
 	_instructionsLabel.setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
 	_instructionsLabel.setPixmap(p);
 	_stackedLayout.addWidget(&_instructionsLabel);
