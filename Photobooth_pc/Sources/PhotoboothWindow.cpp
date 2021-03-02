@@ -43,7 +43,7 @@ PhotoboothWindow::PhotoboothWindow(PhotoboothContext* ctx, QWidget* parent) : QW
 
 	_instructionsLabel.setScaledContents(true);
 	QPixmap p;
-	p.load("C:/Dev/photobooth/Resources/instructions.jpg");
+	p.load("C:/Dev/photobooth/photobooth_pc/Resources/instructions.jpg");
 	_instructionsLabel.setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
 	_instructionsLabel.setPixmap(p);
 	_stackedLayout.addWidget(&_instructionsLabel);
@@ -64,7 +64,7 @@ PhotoboothWindow::PhotoboothWindow(PhotoboothContext* ctx, QWidget* parent) : QW
 
 	_takePicButton = new QPushButton(this);
 	_takePicButton->setGeometry(50, 50, 100, 100);
-	_takePicButton->setIcon(QIcon(QPixmap("C:/Dev/photobooth/Resources/camera.png")));
+	_takePicButton->setIcon(QIcon(QPixmap("C:/Dev/photobooth/photobooth_pc/Resources/camera.png")));
 	_takePicButton->setIconSize(QSize(70, 70));
 	_takePicButton->show();
 	_takePicButton->raise();
