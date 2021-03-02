@@ -39,7 +39,7 @@ bool JsonConfig::readConfig()
 
 		if (err.error != QJsonParseError::NoError)
 		{
-			invalidate(QString("Error parsing file : ") + _filename + " - " + err.errorString() + "   " + err.offset);
+			invalidate(QString("Error parsing file : ") + _filename + " - " + err.errorString() + QString("   ") + QString::number(err.offset));
 		}
 
 		_root = doc.object();

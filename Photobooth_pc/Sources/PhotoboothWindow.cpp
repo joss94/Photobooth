@@ -58,10 +58,8 @@ PhotoboothWindow::PhotoboothWindow(PhotoboothContext* ctx, QWidget* parent) : QW
 	_stackedLayout.addWidget(&_frozenImageLabel);
 	_stackedLayout.setCurrentWidget(&_instructionsLabel);
 
-	_stackedLayout.setMargin(0);
 	_mainLayout.addLayout(&_stackedLayout);
 
-	_mainLayout.setMargin(0);
 	setLayout(&_mainLayout);
 
 	_takePicButton = new QPushButton(this);

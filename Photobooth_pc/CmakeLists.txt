@@ -17,10 +17,10 @@ project(${PROJECT_NAME} LANGUAGES CXX)
 #-------------------------------------------------------------------------------------------------------------------
 file(GLOB_RECURSE Photobooth_src LIST_DIRECTORIES false 
 
-		"${Photobooth_SOURCE_DIR}/*.cpp" 
-		"${Photobooth_SOURCE_DIR}/*.c"
-		"${Photobooth_SOURCE_DIR}/*.h"
-		"${Photobooth_SOURCE_DIR}/*.qrc")
+		"${Photobooth_SOURCE_DIR}/Sources/*.cpp" 
+		"${Photobooth_SOURCE_DIR}/Sources/*.c"
+		"${Photobooth_SOURCE_DIR}/Sources/*.h"
+		"${Photobooth_SOURCE_DIR}/Sources/*.qrc")
 
 add_executable(${PROJECT_NAME} ${Photobooth_src})
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
@@ -48,23 +48,23 @@ endif ()
 #-------------------------------------------------------------------------------------------------------------------
 # LINK QT DEPENDENCIES
 #-------------------------------------------------------------------------------------------------------------------
-find_package(Qt5 COMPONENTS Core REQUIRED)
-target_link_libraries(${PROJECT_NAME} Qt5::Core)
-find_package(Qt5 COMPONENTS Gui REQUIRED)
-target_link_libraries(${PROJECT_NAME} Qt5::Gui)
-find_package(Qt5 COMPONENTS Widgets REQUIRED)
-target_link_libraries(${PROJECT_NAME} Qt5::Widgets)
-find_package(Qt5 COMPONENTS Network REQUIRED)
-target_link_libraries(${PROJECT_NAME} Qt5::Network)
-find_package(Qt5 COMPONENTS Xml REQUIRED)
-target_link_libraries(${PROJECT_NAME} Qt5::Xml)
-find_package(Qt5 COMPONENTS SerialPort REQUIRED)
+find_package(Qt6 COMPONENTS Core REQUIRED)
+target_link_libraries(${PROJECT_NAME} Qt6::Core)
+find_package(Qt6 COMPONENTS Gui REQUIRED)
+target_link_libraries(${PROJECT_NAME} Qt6::Gui)
+find_package(Qt6 COMPONENTS Widgets REQUIRED)
+target_link_libraries(${PROJECT_NAME} Qt6::Widgets)
+find_package(Qt6 COMPONENTS Network REQUIRED)
+target_link_libraries(${PROJECT_NAME} Qt6::Network)
+find_package(Qt6 COMPONENTS Xml REQUIRED)
+target_link_libraries(${PROJECT_NAME} Qt6::Xml)
 
 #-------------------------------------------------------------------------------------------------------------------
 # PREPROCESSOR 
 #-------------------------------------------------------------------------------------------------------------------
 add_definitions(-DUNICODE)
 add_definitions(-D_X64_MACHINE)
+add_definitions(-DNOMINMAX)
 
 #-------------------------------------------------------------------------------------------------------------------
 # POST BUILD 
@@ -76,5 +76,5 @@ get_filename_component(opencvDLLDir ${opencvDLL} DIRECTORY)
 add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${opencvDLLDir}/${opencvDLLNoExt}$<$<CONFIG:debug>:d>.dll" $<TARGET_FILE_DIR:${PROJECT_NAME}>)
 
 #Qt
-get_target_property(Qt5_CoreLocation Qt5::Core LOCATION)
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD COMMAND ${Qt5_CoreLocation}/../windeployqt --"$<IF:$<CONFIG:Debug>,debug,release>" $<TARGET_FILE_DIR:${PROJECT_NAME}>)
+get_target_property(Qt6_CoreLocation Qt6::Core LOCATION)
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD COMMAND ${Qt6_CoreLocation}/../windeployqt --"$<IF:$<CONFIG:Debug>,debug,release>" $<TARGET_FILE_DIR:${PROJECT_NAME}>)
