@@ -61,10 +61,19 @@ target_link_libraries(${PROJECT_NAME} Qt5::Xml)
 find_package(Qt5 COMPONENTS SerialPort REQUIRED)
 
 #-------------------------------------------------------------------------------------------------------------------
+# LINK TENSORFLOW
+#-------------------------------------------------------------------------------------------------------------------
+set(IX_TENSORFLOW ${Photobooth_SOURCE_DIR}/../Externals/tensorflow CACHE PATH "Tensorflow API location")
+
+target_include_directories(${PROJECT_NAME} PUBLIC "${IX_TENSORFLOW}")
+target_link_libraries(${PROJECT_NAME} general "${IX_TENSORFLOW}/tensorflow.lib")
+
+#-------------------------------------------------------------------------------------------------------------------
 # PREPROCESSOR 
 #-------------------------------------------------------------------------------------------------------------------
 add_definitions(-DUNICODE)
 add_definitions(-D_X64_MACHINE)
+add_definitions(-DNOMINMAX)
 
 #-------------------------------------------------------------------------------------------------------------------
 # POST BUILD 
@@ -73,7 +82,11 @@ add_definitions(-D_X64_MACHINE)
 get_target_property(opencvDLL opencv_world IMPORTED_LOCATION_RELEASE)
 get_filename_component(opencvDLLNoExt ${opencvDLL} NAME_WE)
 get_filename_component(opencvDLLDir ${opencvDLL} DIRECTORY)
-add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${opencvDLLDir}/${opencvDLLNoExt}$<$<CONFIG:debug>:d>.dll" $<TARGET_FILE_DIR:${PROJECT_NAME}>)
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${opencvDLLDir}/${opencvDLLNoExt}$<$<CONFIG:debug>:d>.dll" $<TARGET_FILE_DIR:${PROJECT_NAME}>)
+
+#Tensorflow
+file(TO_NATIVE_PATH $<TARGET_FILE_DIR:${PROJECT_NAME}> PHOTOBOOTH_EXE_FOLDER)
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD COMMAND xcopy /d /y /I "\"${IX_TENSORFLOW}\\*.dll\"" "\"${PHOTOBOOTH_EXE_FOLDER}\"")
 
 #Qt
 get_target_property(Qt5_CoreLocation Qt5::Core LOCATION)

@@ -7,6 +7,8 @@
 #include "QVector"
 #include <time.h>
 
+class PeopleFinder;
+
 class BackgroundSwitcher : public QObject
 {
 	Q_OBJECT;
@@ -44,6 +46,8 @@ private:
 	void startDNN();
 
 private:
+
+	PeopleFinder* _peopleFinder = nullptr;
 
 	QString _dnnUtilityDir;
 	QString _modelPath;

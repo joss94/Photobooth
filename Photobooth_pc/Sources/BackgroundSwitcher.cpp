@@ -14,6 +14,7 @@
 #include "QDateTime"
 #include "QDebug.h"
 #include "windows.h"
+#include "PeopleFinder.h"
 
 using namespace cv;
 
@@ -47,6 +48,9 @@ void BackgroundSwitcher::onOutputReceived(QString path)
 BackgroundSwitcher::BackgroundSwitcher(QString scriptPath, QString modelPath) : 
 	_scriptPath(scriptPath), _modelPath(modelPath)
 {
+	_peopleFinder = new PeopleFinder(modelPath, 0.3);
+	_peopleFinder->findHorizon(cv::Mat(1920, 1080, CV_8UC3, cv::Scalar(0)));
+
 	connect(this, &BackgroundSwitcher::outputReceived, this, &BackgroundSwitcher::onOutputReceived);
 	_dnnUtilityDir = "C:/Users/josselin_manceau/Desktop/Perso/Photobooth/temp";
 
@@ -110,31 +114,33 @@ void BackgroundSwitcher::processNewFrame(cv::Mat frame)
 	// Copy image to input dirs, python script will detecet it automatically
 	QString inputName = QDateTime::currentDateTime().toString("yyyy_MM_dd_hh_mm_ss");
 
-	cv::imwrite((_dnnUtilityDir + "/input/" + inputName + ".jpg").toStdString(), _original);
-	new std::thread([&](QString name) 
-	{
-		QString outputFile = _dnnUtilityDir + "/output/" + name + ".jpg";
-		clock_t c = clock();
+	//cv::imwrite((_dnnUtilityDir + "/input/" + inputName + ".jpg").toStdString(), _original);
+	//new std::thread([&](QString name) 
+	//{
+	//	QString outputFile = _dnnUtilityDir + "/output/" + name + ".jpg";
+	//	clock_t c = clock();
 
-		bool outputFound = false;
-		// Wait for output file to appear, with 15s timeout
-		while (!outputFound && (clock() - c) < 15000) 
-		{
-			outputFound = QFile::exists(outputFile);
-			Sleep(20);
-		}
+	//	bool outputFound = false;
+	//	// Wait for output file to appear, with 15s timeout
+	//	while (!outputFound && (clock() - c) < 15000) 
+	//	{
+	//		outputFound = QFile::exists(outputFile);
+	//		Sleep(20);
+	//	}
 
-		if (outputFound)
-		{
-			Sleep(1000);
-			qDebug() << "New file received : " << outputFile;
-			emit outputReceived(outputFile);
-		}
-		else
-		{
-			qDebug() << "Never found output";
-		}
-	}, inputName);
+	//	if (outputFound)
+	//	{
+	//		Sleep(1000);
+	//		qDebug() << "New file received : " << outputFile;
+	//		emit outputReceived(outputFile);
+	//	}
+	//	else
+	//	{
+	//		qDebug() << "Never found output";
+	//	}
+	//}, inputName);
+
+	_peopleFinder->findHorizon(_original);
 }
 
 cv::Mat BackgroundSwitcher::switchBackground(Mat newBackground)
