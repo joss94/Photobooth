@@ -1,0 +1,11 @@
+{
+	"backgrounds": "C:/Users/jojom/Desktop/Photobooth/backgrounds",
+	"pictures": "C:/Users/jojom/Desktop/Photobooth/pictures/originals",
+	"modified_pictures": "C:/Users/jojom/Desktop/Photobooth/pictures/modified",
+	"dnn_model": "C:/Dev/Photobooth/Photobooth_pc/Resources/people_detector/frozen_inference_graph.pb",
+	"script": "C:/Dev/Photobooth/Photobooth_pc/Resources/people_detector/inference.py",
+	"camera_url": "http://192.168.0.12:5000/takepicture",
+	"base_image": "C:/Users/jojom/Desktop/Photobooth/joss_et_oriane.jpg",
+	"max_occurence": 100,
+	"base_opacity": 0.1
+}
