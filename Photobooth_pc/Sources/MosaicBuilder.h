@@ -19,7 +19,7 @@ class MosaicBuilder : public QObject
 
 signals:
 
-	void mosaicUpdatedSignal(cv::Mat mosaic);
+	void mosaicUpdatedSignal(cv::Mat mosaic, bool finished);
 
 public:
 
@@ -39,13 +39,15 @@ public:
 
 	void setBaseOpacity(double opacity);
 
+	void setDisplaySpeed(int speed);
+
 private:
 
 	void refreshTiles();
 
 	cv::Rect getRoi(int index);
 
-	double getMatchScore(cv::Mat image1, cv::Mat image2);
+	double getMatchScore(cv::Mat& image1, cv::Mat& image2);
 
 private:
 
@@ -57,15 +59,13 @@ private:
 
 	int _maxOccurence;
 	double _baseOpacity;
+	int _displaySpeed;
 
 	cv::Mat _baseImage;
 	cv::Mat _largeBaseImage;
 	cv::Mat _mosaicImage;
 
 	QString _tilesDirPath;
-
-	QMap<QString, QColor> _meanColorsOfTiles;
-	QVector<QString> _roiTileMap;
 
 	QVector<matching_scores> _matches;
 

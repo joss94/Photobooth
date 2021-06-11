@@ -10,6 +10,7 @@
 #include <QTimer>
 
 class PhotoboothContext;
+class SettingsWindow;
 
 class PhotoboothWindow : public QWidget
 {
@@ -17,17 +18,29 @@ class PhotoboothWindow : public QWidget
 
 signals:
 
+	void askedForPicSignal();
+
 	void picTakenSignal(cv::Mat pic);
 
 public:
 
 	PhotoboothWindow(PhotoboothContext* ctx, QWidget* parent = nullptr);
 
+	void clickShutterButton();
+
 	void showImage(const QImage& image);
+
+	void showWaitMessage(QString msg);
+
+	void setReadyForPicture(bool ready);
+
+	void hideWaitMessage();
 
 	void showInstuctions();
 
 	void resizeEvent(QResizeEvent* event) override;
+
+	void keyPressEvent(QKeyEvent* event) override;
 
 private:
 
@@ -39,6 +52,7 @@ private:
 
 private:
 
+	SettingsWindow* _pSettingsWindow = nullptr;
 	cv::Mat _testPic;
 
 	PhotoboothContext* _pCtx = nullptr;
@@ -48,13 +62,14 @@ private:
 	
 	QLabel _instructionsLabel;
 	QLabel _countdownLabel;
+	QLabel _waitLabel;
 	QLabel _frozenImageLabel;
 
 	QPushButton* _takePicButton = nullptr;
+	QPushButton* _settingsButton = nullptr;
 
 	QTimer _countdownTimer;
 	int _countdownValue;
 
-	bool _takingPicture = false;
-
+	bool _readyForPicture = true;
 };

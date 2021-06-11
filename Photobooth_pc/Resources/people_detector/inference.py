@@ -9,9 +9,9 @@ import sys
 import time
 import getopt
 import os
-import get_dataset_colormap
 import numpy as np
 import cv2
+import tensorflow
 import tensorflow.compat.v1 as tf
 from PIL import Image
 import shutil

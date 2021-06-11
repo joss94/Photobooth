@@ -1,4 +1,7 @@
 #include "BackgroundSwitcher.h"
+
+#include "QApplication"
+
 #include "vector"
 #include "QLabel"
 
@@ -51,7 +54,7 @@ BackgroundSwitcher::BackgroundSwitcher(QString scriptPath, QString modelPath) :
 	//_peopleFinder->findHorizon(cv::Mat(1920, 1080, CV_8UC3, cv::Scalar(0)));
 
 	connect(this, &BackgroundSwitcher::outputReceived, this, &BackgroundSwitcher::onOutputReceived);
-	_dnnUtilityDir = "C:/Users/jojom/Desktop/Photobooth/temp";
+	_dnnUtilityDir = QCoreApplication::applicationDirPath();
 
 	QDir().mkpath(_dnnUtilityDir + "/input");
 	QDir().mkpath(_dnnUtilityDir + "/output");
@@ -65,17 +68,19 @@ BackgroundSwitcher::BackgroundSwitcher(QString scriptPath, QString modelPath) :
 		{
 			clock_t c = clock();
 
-			int index;
-			do
+			// Finding index of next background
+			int index = 0;
+			if (_rouletteFiles.size() > 1)
 			{
-				index = rand() % _rouletteFiles.size();
-			} while (index == _lastRouletteIndex);
-
-			_lastRouletteIndex = index;
-
-			cv::Mat b = cv::imread(_rouletteFiles[index].toStdString());
+				do
+				{
+					index = rand() % _rouletteFiles.size();
+				} while (index == _lastRouletteIndex);
+				_lastRouletteIndex = index;
+			}
 
 			// If background does not have the right size, resize it and save it to avoid doing it again in the future
+			cv::Mat b = cv::imread(_rouletteFiles[index].toStdString());
 			if (b.cols != 1920 || b.rows != 1080)
 			{
 				Mat tmp;
@@ -84,15 +89,24 @@ BackgroundSwitcher::BackgroundSwitcher(QString scriptPath, QString modelPath) :
 				imwrite(_rouletteFiles[index].toStdString(), b);
 			}
 
+			// Replace the background
 			_switched = switchBackground(b);
 
-			_rouletteTime = 1.2 * _rouletteTime;
-				
-			_rouletteTimer.start(std::max(30, int(_rouletteTime - (clock() - c))));
+			// If only one background available, then stop right now, otherwise keep rolling
+			if (_rouletteFiles.size() == 1)
+			{
+				emit rouletteFinished(_switched);
+			}
+			else
+			{
+				_rouletteTime = 1.2 * _rouletteTime;
+				_rouletteTimer.start(std::max(30, int(_rouletteTime - (clock() - c))));
+			}
+			
 		}
 		else
 		{
-			rouletteFinished(_switched);
+			emit rouletteFinished(_switched);
 		}
 	});
 }
@@ -138,8 +152,6 @@ void BackgroundSwitcher::processNewFrame(cv::Mat frame)
 			qDebug() << "Never found output";
 		}
 	}, inputName);
-
-	//_peopleFinder->findHorizon(_original);
 }
 
 cv::Mat BackgroundSwitcher::switchBackground(Mat newBackground)
@@ -163,7 +175,11 @@ void BackgroundSwitcher::switchBackgroundRoulette(QString backgroundsFolder)
 {
 	QDir dir(backgroundsFolder);
 	_rouletteFiles.clear();
-	for (auto file : dir.entryList(QDir::Files))
+	QStringList filters;
+	filters << "*.jpg" << "*.png" << "*.jpeg";
+	QStringList files = dir.entryList(filters, QDir::Files);
+
+	for (auto file : files)
 	{
 		QString path = backgroundsFolder + "/" + file;
 		cv::Mat b = cv::imread(path.toStdString());
@@ -173,11 +189,18 @@ void BackgroundSwitcher::switchBackgroundRoulette(QString backgroundsFolder)
 		}
 	}
 
-	_lastRouletteIndex = -1;
-	_rouletteTime = 30;
-	srand(time(NULL));
-	_rouletteStartTime = clock();
-	_rouletteTimer.start(_rouletteTime);
+	if (_rouletteFiles.size() > 0)
+	{
+		_lastRouletteIndex = -1;
+		_rouletteTime = 30;
+		srand(time(NULL));
+		_rouletteStartTime = clock();
+		_rouletteTimer.start(_rouletteTime);
+	}
+	else
+	{
+		rouletteFinished(_original.clone());
+	}
 }
 
 // For each frame, extract the bounding box and mask for each detected object
@@ -193,14 +216,6 @@ void BackgroundSwitcher::postprocess(const cv::Mat& out)
 
 void BackgroundSwitcher::startDNN()
 {	
-	QString cmd = QString("%1 -m %2 -i %3 -o %4")
-		.arg(_scriptPath)
-		.arg(_modelPath)
-		.arg(_dnnUtilityDir + "/input")
-		.arg(_dnnUtilityDir + "/output");
-
-	qDebug() << cmd;
-
 	_pDnnThread = new std::thread([&]() {
 		executeCommand(QString("%1 -m %2 -i %3 -o %4")
 			.arg(_scriptPath)
