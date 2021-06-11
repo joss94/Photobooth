@@ -22,7 +22,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DisableProgramGroupPage=yes
 ; Uncomment the following line to run in non administrative install mode (install for current user only.)
 ;PrivilegesRequired=lowest
-OutputBaseFilename=setup
+OutputBaseFilename=photobooth_setup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -44,8 +44,7 @@ Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\Qt6Gui.dll"; DestDir: "{a
 Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\Qt6Network.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\Qt6Svg.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\Qt6Widgets.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\settings.json"; DestDir: "{app}"; Flags: ignoreversion
-Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\backgrounds\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs  
+Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\settings.json"; DestDir: "{app}"; Flags: ignoreversion  
 Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\iconengines\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\imageformats\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\people_detector\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
