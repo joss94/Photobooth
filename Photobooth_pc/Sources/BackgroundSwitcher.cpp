@@ -175,6 +175,7 @@ void BackgroundSwitcher::switchBackgroundRoulette(QString backgroundsFolder)
 
 	_lastRouletteIndex = -1;
 	_rouletteTime = 30;
+	srand(time(NULL));
 	_rouletteStartTime = clock();
 	_rouletteTimer.start(_rouletteTime);
 }

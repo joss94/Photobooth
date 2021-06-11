@@ -6,6 +6,6 @@
 	"script": "C:/Dev/Photobooth/Photobooth_pc/Resources/people_detector/inference.py",
 	"camera_url": "http://192.168.0.12:5000/takepicture",
 	"base_image": "C:/Users/jojom/Desktop/Photobooth/joss_et_oriane.jpg",
-	"max_occurence": 100,
+	"max_occurence": 200,
 	"base_opacity": 0.1
 }

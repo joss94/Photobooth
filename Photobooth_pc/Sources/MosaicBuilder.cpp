@@ -16,9 +16,9 @@ MosaicBuilder::MosaicBuilder()
 void MosaicBuilder::setBaseImage(QString image)
 {
 	cv::Mat original = imread(image.toStdString());
-	cv::resize(original, _baseImage, cv::Size(1920 * 3, 1080 * 3));
+	cv::resize(original, _baseImage, cv::Size(1920 * 4, 1080 * 4));
 
-	setMosaicSize(86, 56);
+	setMosaicSize(1.7 * 86, 1.7 * 56);
 
 	_mosaicImage = Mat(_baseImage.rows, _baseImage.cols, CV_8UC3, Scalar(0));
 }
@@ -146,8 +146,8 @@ cv::Mat MosaicBuilder::refreshImageThread()
 				// ... finally copy the image
 				addWeighted(_baseImage(roi), _baseOpacity, miniTile, 1.0 - _baseOpacity, 0.0, _mosaicImage(roi));
 
-				// Refresh preview every 5 tiles to avoid taking too much time
-				refreshPreview = (refreshPreview + +1) % 7;
+				// Refresh preview every 10 tiles to avoid taking too much time
+				refreshPreview = (refreshPreview + +1) % 10;
 				if (refreshPreview == 0)
 				{
 					// Need to resize mosaic because if it is too large it will make UI thread lag
