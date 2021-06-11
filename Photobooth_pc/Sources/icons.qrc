@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>camera.png</file>
+        <file>instructions.jpg</file>
+        <file>instructions_black.jpg</file>
+        <file>gear.png</file>
+    </qresource>
+</RCC>

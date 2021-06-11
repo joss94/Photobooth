@@ -1,2 +1,6 @@
 
 .vs/
+
+Photobooth_pc/Installer/Output/
+Photobooth_pc/Installer/Output/Resources/people_detector/dist/
+Photobooth_pc/Resources/people_detector/dist/inference/

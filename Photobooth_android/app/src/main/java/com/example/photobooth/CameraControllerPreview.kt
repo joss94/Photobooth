@@ -35,7 +35,6 @@ class CameraControllerPreview {
     private var activity : Activity
     private var textureView : AutoFitTextureView
 
-
     var waitingForImage: Boolean = false
     var image : Image? = null
 

@@ -1,33 +1,53 @@
 #include "PhotoboothContext.h"
 #include "PhotoboothWindow.h"
+#include "TriggerWindow.h"
 #include "BackgroundSwitcher.h"
 
 #include "QApplication"
 #include "MosaicBuilder.h"
 #include "PhotoboothSettings.h"
-#include "QDir"
+#include <QDir>
+#include <QFileDialog>
 
 PhotoboothContext::PhotoboothContext()
 {
 	_pSettings = new PhotoboothSettings(QCoreApplication::applicationDirPath() + "/settings.json");
 
-	qDebug() << "Pictures directory: " << _pSettings->settings().picturesDir;
-	qDebug() << "Modified pictures directory: " << _pSettings->settings().modifPicturesDir;
-	qDebug() << "Backgrounds directory: " << _pSettings->settings().backgroundDir;
+	qDebug() << "Pictures directory: " << getRootFolder() + "/pictures";
+	qDebug() << "Modified pictures directory: " << getRootFolder() + "/pictures/modified";
+	qDebug() << "Backgrounds directory: " << getRootFolder() + "/backgrounds";
 
-	QDir().mkpath(_pSettings->settings().picturesDir);
-	QDir().mkpath(_pSettings->settings().modifPicturesDir);
+	QDir().mkpath(getRootFolder() + "/pictures");
+	QDir().mkpath(getRootFolder() + "/pictures/modified");
+	QDir().mkpath(getRootFolder() + "/backgrounds");
 
 	_pSwitcher = new BackgroundSwitcher(_pSettings->settings().scriptPath, _pSettings->settings().modelPath);
-
 	_pBuilder = new MosaicBuilder();
-	_pBuilder->setBaseImage(_pSettings->settings().baseImagePath);
-	_pBuilder->setTilesDirectory(_pSettings->settings().modifPicturesDir);
-	_pBuilder->setMaxOccurence(_pSettings->settings().maxOccurence);
-	_pBuilder->setBaseOpacity(_pSettings->settings().baseOpacity);
+
+	// Make sure we get an existing base image
+	while (!QFile::exists(_pSettings->settings().baseImagePath))
+	{
+		auto sett = _pSettings->settings();
+		sett.baseImagePath = QFileDialog::getOpenFileName(nullptr, tr("Select base image"), "", tr("ImageFiles (*.png *.jpg *.bmp)"));
+		_pSettings->updateSettings(sett);
+	}
+
+	onSettingsUpdate();
 
 	_pWindow = new PhotoboothWindow(this);
-	_pWindow->showFullScreen();
+	_pWindow->show();
+
+	_pTriggerWindow = new TriggerWindow(this);
+	_pTriggerWindow->show();
+
+	_mosaicRefreshTimer.setSingleShot(true);
+	connect(&_mosaicRefreshTimer, &QTimer::timeout, this, [&]() {
+		_pBuilder->refreshImage();
+		});
+
+	connect(_pWindow, &PhotoboothWindow::picTakenSignal,this, [&]() {
+			_mosaicRefreshTimer.stop();
+		});
 
 	connect(_pWindow, &PhotoboothWindow::picTakenSignal,
 		this, &PhotoboothContext::onNewPicTaken);
@@ -39,7 +59,7 @@ PhotoboothContext::PhotoboothContext()
 		this, &PhotoboothContext::onRouletteFinished);
 
 	connect(_pSwitcher, &BackgroundSwitcher::imageProcessed,
-		this, [&]() {_pSwitcher->switchBackgroundRoulette(_pSettings->settings().backgroundDir); });
+		this, [&]() {_pSwitcher->switchBackgroundRoulette(getRootFolder() + "/backgrounds"); });
 
 	connect(_pBuilder, &MosaicBuilder::mosaicUpdatedSignal,
 		this, &PhotoboothContext::onMosaicUpdated);
@@ -50,6 +70,7 @@ PhotoboothContext::~PhotoboothContext()
 	delete _pBuilder;
 	delete _pSwitcher;
 	delete _pWindow;
+	delete _pTriggerWindow;
 	delete _pSettings;
 }
 
@@ -58,52 +79,71 @@ PhotoboothSettings* PhotoboothContext::getSettings()
 	return _pSettings;
 }
 
-void PhotoboothContext::onNewPicTaken(cv::Mat picture)
-{
-	QString path = _pSettings->settings().picturesDir + "/pic_" + getTimestamp() + ".jpg";
-
-	// imwrite crashes in debug mode, I don't know why
-	#ifdef NDEBUG
-	cv::imwrite(path.toStdString(), picture);
-	#endif
-	
-	_pWindow->showImage(QImage(picture.data, picture.cols, picture.rows, QImage::Format_BGR888));
-	_pSwitcher->processNewFrame(picture);
-	//new std::thread([&](cv::Mat pic) 
-	//{
-	//	_pSwitcher->processNewFrame(pic);
-	//}, picture);
-}
-
 QString PhotoboothContext::getTimestamp()
 {
 	return QDateTime::currentDateTime().toString("yyyy_MM_dd_hh_mm_ss");
 }
 
+void PhotoboothContext::onSettingsUpdate()
+{
+	_pBuilder->setMaxOccurence(_pSettings->settings().maxOccurence);
+	_pBuilder->setBaseOpacity(_pSettings->settings().baseOpacity);
+	_pBuilder->setDisplaySpeed(_pSettings->settings().displaySpeed);
+	_pBuilder->setMosaicSize(_pSettings->settings().mosaicWidth, _pSettings->settings().mosaicHeight);
+	_pBuilder->setBaseImage(_pSettings->settings().baseImagePath);
+	_pBuilder->setTilesDirectory(getRootFolder() + "/pictures/modified");
+}
+
+QString PhotoboothContext::getRootFolder()
+{
+	return QCoreApplication::applicationDirPath();
+}
+
+void PhotoboothContext::takePicture()
+{
+	_pWindow->clickShutterButton();
+}
+
+void PhotoboothContext::refreshMosaic()
+{
+	_pBuilder->refreshImage();
+}
+
+void PhotoboothContext::onNewPicTaken(cv::Mat picture)
+{
+	QString path = getRootFolder() + "/pictures/pic_" + getTimestamp() + ".jpg";
+
+	// imwrite crashes in debug mode, I don't know why
+#ifdef NDEBUG
+	cv::imwrite(path.toStdString(), picture);
+#endif
+
+	_pWindow->showImage(QImage(picture.data, picture.cols, picture.rows, QImage::Format_BGR888));
+	_pWindow->showWaitMessage("Embellissement<br/>en cours...");
+	_pSwitcher->processNewFrame(picture);
+}
+
 void PhotoboothContext::onBackgroundSwitched(cv::Mat image)
 {
+	_pWindow->hideWaitMessage();
 	_pWindow->showImage(QImage(image.data, image.cols, image.rows, QImage::Format_BGR888));
 }
 
 void PhotoboothContext::onRouletteFinished(cv::Mat image)
 {
-	QString path = _pSettings->settings().modifPicturesDir + "/pic_" + getTimestamp() + ".jpg";
+	_pWindow->hideWaitMessage();
+	QString path = getRootFolder() + "/pictures/modified" + "/pic_" + getTimestamp() + ".jpg";
 	
 	// imwrite crashes in debug mode, I don't know why
 	#ifdef NDEBUG
 	cv::imwrite(path.toStdString(), image);
 	#endif
 
-	onShowMosaicClicked();
+	_mosaicRefreshTimer.start(_pSettings->settings().delayBeforeMosaic);
+	_pWindow->setReadyForPicture(true);
 }
 
-void PhotoboothContext::onShowMosaicClicked()
-{
-	cv::Mat mosaic = _pBuilder->refreshImage();
-	//_pWindow->showImage(QImage(mosaic.data, mosaic.cols, mosaic.rows, QImage::Format_BGR888));
-}
-
-void PhotoboothContext::onMosaicUpdated(cv::Mat image)
+void PhotoboothContext::onMosaicUpdated(cv::Mat image, bool finished)
 {
 	_pWindow->showImage(QImage(image.data, image.cols, image.rows, QImage::Format_BGR888));
 }
