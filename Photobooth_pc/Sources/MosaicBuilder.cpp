@@ -25,7 +25,7 @@ void MosaicBuilder::setBaseImage(QString image)
 
 void MosaicBuilder::setTilesDirectory(QString path)
 {
-	std::cout << "Setting tiles directory: " << path.toStdString();
+	std::cout << "Setting tiles directory: " << path.toStdString() << std::endl;
 	QDir().mkpath(path + "/resized");
 	_tilesDirPath = path;
 	refreshTiles();
@@ -229,12 +229,19 @@ void MosaicBuilder::refreshTiles()
 
 	QDir dir(_tilesDirPath);
 
+	int nTiles = dir.entryList(QDir::Files).size();
+	if (nTiles == 0)
+	{
+		std::cout << "Currently no pictures in tile directory" << std::endl;
+		return;
+	}
+
+
 	int timeRead = 0;
 	int timeResize = 0;
 	int timeDiff = 0;
 
 	// Adapt mosaic size based on number of tiles
-	int nTiles = dir.entryList(QDir::Files).size();
 	int sizeW = sqrt((1920.0 / 1080.0) * nTiles * 35) + 1;
 	int sizeH = /*(1080.0 / 1920) **/ sizeW;
 	if (sizeW != _sizeW || sizeH != _sizeH)

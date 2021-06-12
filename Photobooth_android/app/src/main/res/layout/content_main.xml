@@ -14,7 +14,7 @@
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <com.example.photobooth.AutoFitTextureView
+        <com.curlyspiker.photobooth.AutoFitTextureView
             android:id="@+id/textureview"
             android:layout_width="match_parent"
             android:layout_height="match_parent"

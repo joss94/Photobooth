@@ -45,6 +45,8 @@ private:
 
 	void startDNN();
 
+	QString correctPath(QString path);
+
 private:
 
 	PeopleFinder* _peopleFinder = nullptr;

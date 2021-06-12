@@ -9,6 +9,29 @@
 #include <QDir>
 #include <QFileDialog>
 
+
+QString correctPath(QString path)
+{
+	return path;
+	QStringList pieces = path.split("/");
+	QString output = "";
+	for (auto& p : pieces)
+	{
+		if (p.contains(" "))
+		{
+			output += QString("\"") + p + QString("\"");
+		}
+		else
+		{
+			output += p;
+		}
+
+		output += "/";
+	}
+
+	return output.left(output.size() - 1);
+}
+
 PhotoboothContext::PhotoboothContext()
 {
 	_pSettings = new PhotoboothSettings(QCoreApplication::applicationDirPath() + "/settings.json");
@@ -17,9 +40,9 @@ PhotoboothContext::PhotoboothContext()
 	qDebug() << "Modified pictures directory: " << getRootFolder() + "/pictures/modified";
 	qDebug() << "Backgrounds directory: " << getRootFolder() + "/backgrounds";
 
-	QDir().mkpath(getRootFolder() + "/pictures");
-	QDir().mkpath(getRootFolder() + "/pictures/modified");
-	QDir().mkpath(getRootFolder() + "/backgrounds");
+	QDir().mkpath(correctPath(getRootFolder() + "/pictures"));
+	QDir().mkpath(correctPath(getRootFolder() + "/pictures/modified"));
+	QDir().mkpath(correctPath(getRootFolder() + "/backgrounds"));
 
 	_pSwitcher = new BackgroundSwitcher(_pSettings->settings().scriptPath, _pSettings->settings().modelPath);
 	_pBuilder = new MosaicBuilder();

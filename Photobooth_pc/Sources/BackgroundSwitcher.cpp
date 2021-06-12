@@ -34,7 +34,6 @@ std::string executeCommand(const char* cmd)
 		result += buffer.data();
 	}
 	return result;
-
 }
 
 void BackgroundSwitcher::onOutputReceived(QString path)
@@ -135,7 +134,7 @@ void BackgroundSwitcher::processNewFrame(cv::Mat frame)
 
 		bool outputFound = false;
 		// Wait for output file to appear, with 15s timeout
-		while (!outputFound && (clock() - c) < 15000) 
+		while (!outputFound && (clock() - c) < 40000) 
 		{
 			outputFound = QFile::exists(outputFile);
 			Sleep(20);
@@ -218,9 +217,31 @@ void BackgroundSwitcher::startDNN()
 {	
 	_pDnnThread = new std::thread([&]() {
 		executeCommand(QString("%1 -m %2 -i %3 -o %4")
-			.arg(_scriptPath)
-			.arg(_modelPath)
-			.arg(_dnnUtilityDir + "/input")
-			.arg(_dnnUtilityDir + "/output").toStdString().c_str());
+			.arg(correctPath(_scriptPath))
+			.arg(correctPath(_modelPath))
+			.arg(correctPath(_dnnUtilityDir) + "/input")
+			.arg(correctPath(_dnnUtilityDir) + "/output").toStdString().c_str());
 	});
+}
+
+QString BackgroundSwitcher::correctPath(QString path)
+{
+	//return path.replace(" ", "^ ");
+	QStringList pieces = path.split("/");
+	QString output = "";
+	for (auto& p : pieces)
+	{
+		if (p.contains(" "))
+		{
+			output += QString("\"") + p + QString("\"");
+		}
+		else
+		{
+			output += p;
+		}
+
+		output += "/";
+	}
+
+	return output.left(output.size() - 1);
 }

@@ -4,7 +4,7 @@
 #define MyAppName "Photobooth"
 #define MyAppVersion "1.0"
 #define MyAppPublisher "Josselin Manceau"
-#define MyAppURL "https://www.photobooth.curlyspiker.fr/"
+#define MyAppURL "https://github.com/joss94/Photobooth"
 #define MyAppExeName "Photobooth.exe"
 
 [Setup]
@@ -22,7 +22,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DisableProgramGroupPage=yes
 ; Uncomment the following line to run in non administrative install mode (install for current user only.)
 ;PrivilegesRequired=lowest
-OutputBaseFilename=photobooth_setup
+OutputBaseFilename=photobooth_1_0_setup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -35,6 +35,7 @@ Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
+Source: "C:\Dev\Photobooth\Photobooth_pc\Resources\VC_redist.x64.exe"; DestDir: {tmp}; Flags: dontcopy
 Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\D3Dcompiler_47.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\opencv_world450.dll"; DestDir: "{app}"; Flags: ignoreversion
@@ -45,18 +46,47 @@ Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\Qt6Network.dll"; DestDir:
 Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\Qt6Svg.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\Qt6Widgets.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\settings.json"; DestDir: "{app}"; Flags: ignoreversion  
-Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\iconengines\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\imageformats\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\people_detector\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\platforms\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\styles\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\translations\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\iconengines\*"; DestDir: "{app}\iconengines"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\imageformats\*"; DestDir: "{app}\imageformats"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\Dev\Photobooth\Photobooth_pc\Resources\default_backgrounds\*"; DestDir: "{app}\backgrounds"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\Dev\Photobooth\Photobooth_pc\Resources\people_detector\dist\*"; DestDir: "{app}\people_detector"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\Dev\Photobooth\Photobooth_pc\Resources\people_detector\frozen_inference_graph.pb"; DestDir: "{app}\people_detector"; Flags: ignoreversion
+Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\platforms\*"; DestDir: "{app}\platforms"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\styles\*"; DestDir: "{app}\styles"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\Dev\Photobooth\Photobooth_pc\build\Release\translations\*"; DestDir: "{app}\translations"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
+[Code]
+function VCRedistNeedsInstall: Boolean;
+var 
+  Version: String;
+begin
+  if RegQueryStringValue(HKEY_LOCAL_MACHINE,
+       'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64', 'Version', Version) then
+  begin
+    // Is the installed version at least 14.14 ? 
+    Log('VC Redist Version check : found ' + Version);
+    Result := (CompareStr(Version, 'v14.14.26429.03')<0);
+  end
+  else 
+  begin
+    // Not even an old version installed
+    Result := True;
+  end;
+  if (Result) then
+  begin
+    ExtractTemporaryFile('VC_redist.x64.exe');
+  end;
+end;
+
 [Run]
+Filename: "{tmp}\VC_redist.x64.exe"; \
+    StatusMsg: "Installing VC++ redistributables"; \
+    Parameters: "/quiet /norestart"; \
+    Check: VCRedistNeedsInstall; WorkingDir: {tmp};
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 

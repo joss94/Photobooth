@@ -258,7 +258,7 @@ cv::Mat PhotoboothWindow::takePicture()
 		QString r = result.c_str();
 		for (auto s : r.split("\n")) 
 		{
-			if (s.contains("dynamic"))
+			if (s.contains("dynam"))
 			{
 				r = s;
 				break;
@@ -269,7 +269,7 @@ cv::Mat PhotoboothWindow::takePicture()
 		auto match = rx.match(r);
 		QString ip = match.captured();
 
-		std::cout << "Auto IP: " << ip.toStdString();
+		std::cout << "Auto IP: " << ip.toStdString() << std::endl;
 
 		req.replace(rx, ip);
 	}
