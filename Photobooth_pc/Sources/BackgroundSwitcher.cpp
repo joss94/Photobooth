@@ -8,66 +8,33 @@
 #include <QDir>
 #include <algorithm>
 
-#include <cstdio>
 #include <iostream>
-#include <memory>
-#include <stdexcept>
-#include <string>
-#include <array>
 #include "QDateTime"
 #include "QDebug.h"
+
 #include "windows.h"
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <signal.h>
-#include <string.h>
-#include <errno.h>
-#include <string>
-#include <sstream>
-
 using namespace cv;
-
-std::string executeCommand(const char* cmd) 
-{
-	std::cout << "Executing command : " << cmd << std::endl;
-
-	std::array<char, 128> buffer;
-	std::string result;
-	std::unique_ptr<FILE, decltype(&_pclose)> pipe(_popen(cmd, "r"), _pclose);
-	if (!pipe) {
-		throw std::runtime_error("popen() failed!");
-	}
-	while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-		result += buffer.data();
-	}
-	return result;
-}
-
-void BackgroundSwitcher::onOutputReceived(QString path)
-{
-	auto r = cv::imread(path.toStdString());
-
-	// Fill markers based on Mask RCNN results
-	postprocess(r);
-
-	emit imageProcessed();
-}
 
 BackgroundSwitcher::BackgroundSwitcher(QString scriptPath, QString modelPath) : 
 	_scriptPath(scriptPath), _modelPath(modelPath)
 {
-	//_peopleFinder = new PeopleFinder(modelPath, 0.3);
-	//_peopleFinder->findHorizon(cv::Mat(1920, 1080, CV_8UC3, cv::Scalar(0)));
-
+	// Start DNN
 	connect(this, &BackgroundSwitcher::outputReceived, this, &BackgroundSwitcher::onOutputReceived);
 	_dnnUtilityDir = QCoreApplication::applicationDirPath();
 
 	QDir().mkpath(_dnnUtilityDir + "/input");
 	QDir().mkpath(_dnnUtilityDir + "/output");
 
-	startDNN();
+	QStringList arguments;
+	arguments << "-m" << correctPath(_modelPath)
+		<< "-i" << correctPath(_dnnUtilityDir) + "/input"
+		<< "-o" << correctPath(_dnnUtilityDir) + "/output";
 
+	_pythonProcess = new QProcess();
+	_pythonProcess->start(correctPath(_scriptPath), arguments);
+
+	// Start roulette timer
 	_rouletteTimer.setSingleShot(true);
 	connect(&_rouletteTimer, &QTimer::timeout, this, [&]()
 	{
@@ -109,7 +76,6 @@ BackgroundSwitcher::BackgroundSwitcher(QString scriptPath, QString modelPath) :
 				_rouletteTime = 1.2 * _rouletteTime;
 				_rouletteTimer.start(std::max(30, int(_rouletteTime - (clock() - c))));
 			}
-			
 		}
 		else
 		{
@@ -120,15 +86,9 @@ BackgroundSwitcher::BackgroundSwitcher(QString scriptPath, QString modelPath) :
 
 BackgroundSwitcher::~BackgroundSwitcher()
 {
-
 	if(_pythonProcess != nullptr)
 	{
 		_pythonProcess->kill();
-	}
-
-	if (_pDnnThread != nullptr)
-	{
-		delete _pDnnThread;
 	}
 }
 
@@ -165,6 +125,18 @@ void BackgroundSwitcher::processNewFrame(cv::Mat frame)
 			qDebug() << "Never found output";
 		}
 	}, inputName);
+}
+
+void BackgroundSwitcher::onOutputReceived(QString path)
+{
+	cv::Mat r = cv::imread(path.toStdString());
+	r.convertTo(_markersForeground, CV_32FC3, 1.0 / 255);
+
+	_markersBackground = Scalar::all(1.0) - _markersForeground;
+
+	_original.convertTo(_foreground, CV_32FC3);
+	multiply(_markersForeground, _foreground, _foreground);
+	emit imageProcessed();
 }
 
 cv::Mat BackgroundSwitcher::switchBackground(Mat newBackground)
@@ -216,43 +188,8 @@ void BackgroundSwitcher::switchBackgroundRoulette(QString backgroundsFolder)
 	}
 }
 
-// For each frame, extract the bounding box and mask for each detected object
-void BackgroundSwitcher::postprocess(const cv::Mat& out)
-{
-	out.convertTo(_markersForeground, CV_32FC3, 1.0 / 255);
-
-	_markersBackground = Scalar::all(1.0) - _markersForeground;		
-
-	_original.convertTo(_foreground, CV_32FC3);
-	multiply(_markersForeground, _foreground, _foreground);
-}
-
-void BackgroundSwitcher::startDNN()
-{	
-	QString command = QString("%1 -m %2 -i %3 -o %4")
-		.arg(correctPath(_scriptPath))
-		.arg(correctPath(_modelPath))
-		.arg(correctPath(_dnnUtilityDir) + "/input")
-		.arg(correctPath(_dnnUtilityDir) + "/output");
-
-	QString program = correctPath(_scriptPath);
-
-	QStringList arguments;
-	arguments << "-m" << correctPath(_modelPath) 
-		<< "-i" << correctPath(_dnnUtilityDir) + "/input"  
-		<< "-o" << correctPath(_dnnUtilityDir) + "/output";
-
-	_pythonProcess = new QProcess();
-	_pythonProcess->start(program, arguments);
-
-	/*_pDnnThread = new std::thread([&]() {
-		executeCommand(command.toStdString().c_str());
-	});*/
-}
-
 QString BackgroundSwitcher::correctPath(QString path)
 {
-	//return path.replace(" ", "^ ");
 	QStringList pieces = path.split("/");
 	QString output = "";
 	for (auto& p : pieces)

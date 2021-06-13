@@ -1,7 +1,6 @@
 #pragma once
 
 #include "opencv2/opencv.hpp"
-#include <thread>
 #include "QObject"
 #include "QTimer"
 #include "QVector"
@@ -40,8 +39,6 @@ public:
 
 	void switchBackgroundRoulette(QString backgroundsFolder);
 
-	void postprocess(const cv::Mat& out);
-
 private:
 
 	void startDNN();
@@ -68,6 +65,4 @@ private:
 	int _lastRouletteIndex;
 	int _rouletteTime;
 	clock_t _rouletteStartTime;
-
-	std::thread* _pDnnThread = nullptr;
 };
