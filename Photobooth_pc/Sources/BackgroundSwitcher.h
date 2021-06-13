@@ -5,6 +5,7 @@
 #include "QObject"
 #include "QTimer"
 #include "QVector"
+#include "QProcess"
 #include <time.h>
 
 class PeopleFinder;
@@ -49,6 +50,7 @@ private:
 
 private:
 
+	QProcess* _pythonProcess = nullptr;
 	PeopleFinder* _peopleFinder = nullptr;
 
 	QString _dnnUtilityDir;

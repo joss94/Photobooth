@@ -1,3 +1,5 @@
+#include "windows.h"
+
 #include "PhotoboothContext.h"
 #include "PhotoboothWindow.h"
 #include "TriggerWindow.h"
@@ -47,6 +49,8 @@ PhotoboothContext::PhotoboothContext()
 	_pSwitcher = new BackgroundSwitcher(_pSettings->settings().scriptPath, _pSettings->settings().modelPath);
 	_pBuilder = new MosaicBuilder();
 
+	_pTriggerWindow = new TriggerWindow(this);
+
 	// Make sure we get an existing base image
 	while (!QFile::exists(_pSettings->settings().baseImagePath))
 	{
@@ -59,9 +63,6 @@ PhotoboothContext::PhotoboothContext()
 
 	_pWindow = new PhotoboothWindow(this);
 	_pWindow->show();
-
-	_pTriggerWindow = new TriggerWindow(this);
-	_pTriggerWindow->show();
 
 	_mosaicRefreshTimer.setSingleShot(true);
 	connect(&_mosaicRefreshTimer, &QTimer::timeout, this, [&]() {
@@ -109,11 +110,24 @@ QString PhotoboothContext::getTimestamp()
 
 void PhotoboothContext::onSettingsUpdate()
 {
-	_pBuilder->setMaxOccurence(_pSettings->settings().maxOccurence);
-	_pBuilder->setBaseOpacity(_pSettings->settings().baseOpacity);
-	_pBuilder->setDisplaySpeed(_pSettings->settings().displaySpeed);
-	_pBuilder->setMosaicSize(_pSettings->settings().mosaicWidth, _pSettings->settings().mosaicHeight);
-	_pBuilder->setBaseImage(_pSettings->settings().baseImagePath);
+	const auto& s = _pSettings->settings();
+
+	if (s.secondButton)
+	{
+		_pTriggerWindow->show();
+	}
+	else
+	{
+		_pTriggerWindow->hide();
+	}
+
+	::ShowWindow(::GetConsoleWindow(), s.showConsole ? SW_SHOW : SW_HIDE);
+
+	_pBuilder->setMaxOccurence(s.maxOccurence);
+	_pBuilder->setBaseOpacity(s.baseOpacity);
+	_pBuilder->setDisplaySpeed(s.displaySpeed);
+	_pBuilder->setMosaicSize(s.mosaicWidth, s.mosaicHeight);
+	_pBuilder->setBaseImage(s.baseImagePath);
 	_pBuilder->setTilesDirectory(getRootFolder() + "/pictures/modified");
 }
 

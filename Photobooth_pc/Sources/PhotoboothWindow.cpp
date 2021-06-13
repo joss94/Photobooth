@@ -30,8 +30,7 @@ PhotoboothWindow::PhotoboothWindow(PhotoboothContext* ctx, QWidget* parent) : QW
 		if (_countdownValue > 0)
 		{
 			QString txt = _countdownValue == 1 ? "On bouge plus" : QString::number(_countdownValue - 1);
-			_countdownLabel.setText(QString("<font color='white'>" + txt + "</font>"));
-			showCountdown();
+			showWaitMessage(txt);
 			_countdownTimer.start(1000);
 		}
 		else
@@ -41,46 +40,29 @@ PhotoboothWindow::PhotoboothWindow(PhotoboothContext* ctx, QWidget* parent) : QW
 			{
 				emit picTakenSignal(pic.clone());
 			}
-			hideCountdown();
 		}
 	});
 
-	_instructionsLabel.setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
+	_stackedTop.setStackingMode(QStackedLayout::StackAll);
 
-	_instructionsLabel.setScaledContents(true);
-	QPixmap p;
-	p.load(":/icons/instructions.jpg");
-	_instructionsLabel.setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
-	_instructionsLabel.setPixmap(p);
-	_stackedLayout.addWidget(&_instructionsLabel);
-
-	QFont font = _countdownLabel.font();
-	font.setPointSize(152);
-	font.setBold(true);
-	_countdownLabel.setFont(font);
-	_countdownLabel.setAlignment(Qt::AlignCenter);
-	_stackedLayout.addWidget(&_countdownLabel);
-
-	font = _waitLabel.font();
-	font.setPointSize(120);
+	QFont font = _waitLabel.font();
+	font.setPointSize(80);
 	font.setBold(true);
 	_waitLabel.setFont(font);
 	_waitLabel.setAlignment(Qt::AlignCenter);
-	_stackedLayout.addWidget(&_waitLabel);
+	_stackedTop.addWidget(&_waitLabel);
 
-	_stackedLayout.addWidget(&_frozenImageLabel);
-	_stackedLayout.setCurrentWidget(&_instructionsLabel);
-
-	_mainLayout.addLayout(&_stackedLayout);
-
-	setLayout(&_mainLayout);
+	QWidget* _buttonsWidget = new QWidget();
+	QHBoxLayout* _buttonsLayout = new QHBoxLayout();
+	_buttonsWidget->setLayout(_buttonsLayout);
+	_stackedTop.addWidget(_buttonsWidget);
+	_buttonsLayout->setAlignment(Qt::AlignBottom | Qt::AlignHCenter);
 
 	_takePicButton = new QPushButton(this);
-	_takePicButton->setGeometry(50, 50, 100, 100);
 	_takePicButton->setIcon(QIcon(QPixmap(":/icons/camera.png")));
+	_takePicButton->setFixedSize(100, 100);
 	_takePicButton->setIconSize(QSize(70, 70));
-	_takePicButton->show();
-	_takePicButton->raise();
+	_buttonsLayout->addWidget(_takePicButton);
 
 	_takePicButton->setStyleSheet("\
 		QPushButton {\
@@ -92,27 +74,25 @@ PhotoboothWindow::PhotoboothWindow(PhotoboothContext* ctx, QWidget* parent) : QW
 		\
 		QPushButton:hover{\
 			background-color: #888;\
-		}");
+		}"
+	);
 
 	connect(_takePicButton, &QPushButton::clicked, this, [&]() 
 	{ 
 		if (_readyForPicture)
 		{
-			_readyForPicture = false;
+			setReadyForPicture(false);
 			_countdownValue = 5;
 			_countdownTimer.start(1);
 			emit askedForPicSignal();
 		}
 	});
 
-
-
 	_settingsButton = new QPushButton(this);
-	_settingsButton->setGeometry(50, 50, 60, 60);
 	_settingsButton->setIcon(QIcon(QPixmap(":/icons/gear.png")));
+	_settingsButton->setFixedSize(60, 60);
 	_settingsButton->setIconSize(QSize(40, 40));
-	_settingsButton->show();
-	_settingsButton->raise();
+	_buttonsLayout->addWidget(_settingsButton);
 
 	_settingsButton->setStyleSheet("\
 		QPushButton {\
@@ -124,12 +104,27 @@ PhotoboothWindow::PhotoboothWindow(PhotoboothContext* ctx, QWidget* parent) : QW
 		\
 		QPushButton:hover{\
 			background-color: #888;\
-		}");
+		}"
+	);
 
 	connect(_settingsButton, &QPushButton::clicked, this, [&]()
 		{
 			_pSettingsWindow->show();
-		});
+		}
+	);
+
+	_frozenImageLabel.setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+	_stackedMain.addWidget(&_frozenImageLabel);
+
+	_stackedTopWidget.setLayout(&_stackedTop);
+	_stackedMain.addWidget(&_stackedTopWidget);
+
+	_stackedMain.setStackingMode(QStackedLayout::StackAll);
+	_mainLayout.addLayout(&_stackedMain);
+
+	setLayout(&_mainLayout);
+
+	showImage(QImage(":/icons/instructions.jpg"));
 }
 
 void PhotoboothWindow::clickShutterButton()
@@ -140,68 +135,25 @@ void PhotoboothWindow::clickShutterButton()
 void PhotoboothWindow::showImage(const QImage& image)
 {
 	_frozenImageLabel.setScaledContents(true);
-	_frozenImageLabel.setPixmap(QPixmap::fromImage(image).scaled(_frozenImageLabel.size()));
-	_stackedLayout.setCurrentWidget(&_frozenImageLabel);
-	if (_readyForPicture)
-	{
-		_takePicButton->raise();
-	}
-	_settingsButton->raise();
+	_frozenImageLabel.setPixmap(QPixmap::fromImage(image));
 }
 
 void PhotoboothWindow::showWaitMessage(QString msg)
 {
 	_waitLabel.setText(QString("<font color='white'>" + msg + "</font>"));
-	_waitLabel.show();
-	_stackedLayout.setStackingMode(QStackedLayout::StackAll);
-	_stackedLayout.setCurrentWidget(&_waitLabel);
-	if (_readyForPicture)
-	{
-		_takePicButton->raise();
-	}
-	_settingsButton->raise();
+	_stackedTop.setCurrentWidget(&_waitLabel);
+	_stackedMain.setCurrentWidget(&_stackedTopWidget);
 }
 
 void PhotoboothWindow::hideWaitMessage()
 {
-	_waitLabel.hide();
-}
-
-void PhotoboothWindow::showInstuctions()
-{
-	_stackedLayout.setCurrentWidget(&_instructionsLabel);
-	_takePicButton->raise();
-	_settingsButton->raise();
-	_stackedLayout.setStackingMode(QStackedLayout::StackOne);
-}
-
-void PhotoboothWindow::resizeEvent(QResizeEvent* event)
-{
-	QWidget::resizeEvent(event);
-
-	if (_takePicButton != nullptr)
-	{
-		_takePicButton->setGeometry(
-			(event->size().width() - _takePicButton->width()) / 2,
-			(event->size().height() - _takePicButton->height()) - 20,
-			_takePicButton->width(),
-			_takePicButton->height());
-	}
-
-	if (_settingsButton != nullptr)
-	{
-		_settingsButton->setGeometry(
-			(event->size().width() - _settingsButton->width()) - 20,
-			(event->size().height() - _settingsButton->height()) - 20,
-			_settingsButton->width(),
-			_settingsButton->height());
-	}
+	_waitLabel.setText("");
 }
 
 void PhotoboothWindow::setReadyForPicture(bool ready)
 {
 	_readyForPicture = ready;
-	_takePicButton->raise();
+	_takePicButton->setEnabled(ready);
 }
 
 void PhotoboothWindow::keyPressEvent(QKeyEvent* event) {
@@ -221,21 +173,9 @@ void PhotoboothWindow::keyPressEvent(QKeyEvent* event) {
 	}
 }
 
-void PhotoboothWindow::showCountdown()
+void PhotoboothWindow::closeEvent(QCloseEvent* event)
 {
-	_countdownLabel.show();
-	_stackedLayout.setStackingMode(QStackedLayout::StackAll);
-	_stackedLayout.setCurrentWidget(&_countdownLabel);
-	if (_readyForPicture)
-	{
-		_takePicButton->raise();
-	}
-	_settingsButton->raise();
-}
-
-void PhotoboothWindow::hideCountdown()
-{
-	_countdownLabel.hide();
+	delete _pCtx;
 }
 
 cv::Mat PhotoboothWindow::takePicture()
@@ -292,8 +232,8 @@ cv::Mat PhotoboothWindow::takePicture()
 	else
 	{
 		qDebug() << "Empty response from camera";
-		_readyForPicture = true;
-		showInstuctions();
+		setReadyForPicture(true);
+		showImage(QImage(":/icons/instructions.jpg"));
 	}
 
 	return pic;

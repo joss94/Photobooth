@@ -21,7 +21,6 @@ BOOL WINAPI ConsoleHandlerRoutine(DWORD dwCtrlType)
 {
 	if (CTRL_CLOSE_EVENT == dwCtrlType) 
     {
-		qDebug() << "Deleting context";
 		delete ctx;
 		return FALSE;
 	}

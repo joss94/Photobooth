@@ -36,7 +36,9 @@ void SettingsWindow::init()
 	_formLayout.addRow("Mosaic width", &_mosaicWidthEdit);
 	_formLayout.addRow("Mosaic height", &_mosaicHeightEdit);
 	_formLayout.addRow("Display speed", &_displaySpeedEdit);
-	_formLayout.addRow("Dealy before mosaic (ms)", &_delayMosaicEdit);
+	_formLayout.addRow("Delay before mosaic (ms)", &_delayMosaicEdit);
+	_formLayout.addRow("Second button", &_secondButtonCheckBox);
+	_formLayout.addRow("Show console", &_showConsoleCheckBox);
 
 	_dnnPathEdit.setEnabled(false);
 	_dnnScriptPathEdit.setEnabled(false);
@@ -64,6 +66,8 @@ void SettingsWindow::resetParams()
 	_mosaicHeightEdit.setText(QString::number(s.mosaicHeight));
 	_displaySpeedEdit.setText(QString::number(s.displaySpeed));
 	_delayMosaicEdit.setText(QString::number(s.delayBeforeMosaic));
+	_secondButtonCheckBox.setCheckState(s.secondButton ? Qt::Checked : Qt::Unchecked);
+	_showConsoleCheckBox.setCheckState(s.showConsole ? Qt::Checked : Qt::Unchecked);
 
 	_saveButton.setText("Apply");
 }
@@ -97,6 +101,8 @@ void SettingsWindow::onSaveButtonClicked()
 	s.mosaicHeight = _mosaicHeightEdit.text().toInt();
 	s.displaySpeed = _displaySpeedEdit.text().toInt();
 	s.delayBeforeMosaic = _delayMosaicEdit.text().toInt();
+	s.secondButton = _secondButtonCheckBox.isChecked();
+	s.showConsole = _showConsoleCheckBox.isChecked();
 
 	_pCtx->getSettings()->updateSettings(s);
 	_pCtx->onSettingsUpdate();

@@ -49,6 +49,8 @@ private:
 	QLineEdit _mosaicHeightEdit;
 	QLineEdit _displaySpeedEdit;
 	QLineEdit _delayMosaicEdit;
+	QCheckBox _secondButtonCheckBox;
+	QCheckBox _showConsoleCheckBox;
 
 	QPushButton _saveButton;
 };

@@ -16,50 +16,66 @@ MosaicBuilder::MosaicBuilder()
 
 void MosaicBuilder::setBaseImage(QString image)
 {
-	cv::Mat original = imread(image.toStdString());
-	cv::resize(original, _baseImage, cv::Size(1920 * 1.0, 1080 * 1.0));
+	if (_baseImagePath != image)
+	{
+		_baseImagePath = image;
+		cv::Mat original = imread(_baseImagePath.toStdString());
+		cv::resize(original, _baseImage, cv::Size(1920 * 1.0, 1080 * 1.0));
 
-	setMosaicSize(_sizeW, _sizeH);
-	_mosaicImage = Mat(_baseImage.rows, _baseImage.cols, CV_8UC3, Scalar(0));
+		refreshTiles();
+		_mosaicImage = Mat(_baseImage.rows, _baseImage.cols, CV_8UC3, Scalar(0));
+	}
 }
 
 void MosaicBuilder::setTilesDirectory(QString path)
 {
 	std::cout << "Setting tiles directory: " << path.toStdString() << std::endl;
-	QDir().mkpath(path + "/resized");
-	_tilesDirPath = path;
-	refreshTiles();
+	if (path != _tilesDirPath)
+	{
+		QDir().mkpath(QString(path + "/resized").replace("/", "\\"));
+		_tilesDirPath = path;
+		refreshTiles();
+	}
 }
 
-void MosaicBuilder::setMosaicSize(int szW, int szH)
+void MosaicBuilder::setMosaicSize(int szW, int szH, bool refresh)
 {
-	bool different = szW != _sizeW || szH != _sizeH;
-
-	_sizeW = szW;
-	_sizeH = szH;
-	_mosaicSize = _sizeW * _sizeH;
-	_roiW = int(_baseImage.cols / _sizeW) + 1;
-	_roiH = int(_baseImage.rows / _sizeH) + 1;
-
-	_miniImages.clear();
-	_matches.clear();
-
-	if (_tilesDirPath != "")
+	if (szW != _sizeW || szH != _sizeH)
 	{
-		setTilesDirectory(_tilesDirPath);
+		_sizeW = szW;
+		_sizeH = szH;
+		_mosaicSize = _sizeW * _sizeH;
+		_roiW = int(_baseImage.cols / _sizeW) + 1;
+		_roiH = int(_baseImage.rows / _sizeH) + 1;
+
+		_miniImages.clear();
+		_matches.clear();
+
+		if (refresh)
+		{
+			refreshTiles();
+		}
 	}
 }
 
 void MosaicBuilder::setMaxOccurence(int maxOccurence)
 {
-	_maxOccurence = maxOccurence;
+	if (_maxOccurence != maxOccurence)
+	{
+		_maxOccurence = maxOccurence;
+		//refreshImage();
+	}
 }
 
 void MosaicBuilder::setBaseOpacity(double opacity)
 {
 	if (opacity >= 0.0 && opacity <= 1.0)
 	{
-		_baseOpacity = opacity;
+		if (_baseOpacity != opacity)
+		{
+			_baseOpacity = opacity;
+			//refreshImage();
+		}
 	}
 }
 
@@ -236,19 +252,13 @@ void MosaicBuilder::refreshTiles()
 		return;
 	}
 
-
 	int timeRead = 0;
 	int timeResize = 0;
 	int timeDiff = 0;
 
 	// Adapt mosaic size based on number of tiles
-	int sizeW = sqrt((1920.0 / 1080.0) * nTiles * 35) + 1;
-	int sizeH = /*(1080.0 / 1920) **/ sizeW;
-	if (sizeW != _sizeW || sizeH != _sizeH)
-	{
-		setMosaicSize(sizeW, sizeH);
-		return;
-	}
+	int sz = sqrt((1920.0 / 1080.0) * nTiles * 35) + 1;
+	setMosaicSize(sz, sz, false);
 
 	for (auto file : dir.entryList(QDir::Files))
 	{

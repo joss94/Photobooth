@@ -26,6 +26,8 @@ struct photobooth_settings_t
 	int mosaicHeight = 52;
 	int displaySpeed = 10;
 	int delayBeforeMosaic = 10000;
+	bool secondButton = false;
+	bool showConsole = false;
 
 	void loadFromJson(const QJsonObject& json)
 	{
@@ -38,6 +40,8 @@ struct photobooth_settings_t
 		mosaicHeight = json["mosaic_height"].toInt(mosaicHeight);
 		displaySpeed = json["display_speed"].toInt(displaySpeed);
 		delayBeforeMosaic = json["delay_mosaic"].toInt(delayBeforeMosaic);
+		secondButton = json["second_button"].toBool(secondButton);
+		showConsole = json["show_console"].toBool(showConsole);
 	};
 
 	QJsonObject toJson() const
@@ -53,6 +57,8 @@ struct photobooth_settings_t
 		v["mosaic_height"] = mosaicHeight;
 		v["display_speed"] = displaySpeed;
 		v["delay_mosaic"] = delayBeforeMosaic;
+		v["second_button"] = secondButton;
+		v["show_console"] = showConsole;
 
 		return v;
 	};

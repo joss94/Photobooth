@@ -22,6 +22,8 @@ signals:
 
 	void picTakenSignal(cv::Mat pic);
 
+	void showMessageSignal(QString msg);
+
 public:
 
 	PhotoboothWindow(PhotoboothContext* ctx, QWidget* parent = nullptr);
@@ -36,17 +38,11 @@ public:
 
 	void hideWaitMessage();
 
-	void showInstuctions();
-
-	void resizeEvent(QResizeEvent* event) override;
-
 	void keyPressEvent(QKeyEvent* event) override;
 
+	void closeEvent(QCloseEvent* event) override;
+
 private:
-
-	void showCountdown();
-
-	void hideCountdown();
 
 	cv::Mat takePicture();
 
@@ -58,10 +54,11 @@ private:
 	PhotoboothContext* _pCtx = nullptr;
 
 	QVBoxLayout _mainLayout;
-	QStackedLayout _stackedLayout;
-	
-	QLabel _instructionsLabel;
-	QLabel _countdownLabel;
+	QWidget _stackedTopWidget;
+	QWidget _stackedBottomWidget;
+	QStackedLayout _stackedMain;
+	QStackedLayout _stackedTop;
+
 	QLabel _waitLabel;
 	QLabel _frozenImageLabel;
 

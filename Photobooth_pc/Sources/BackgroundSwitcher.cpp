@@ -18,6 +18,14 @@
 #include "QDebug.h"
 #include "windows.h"
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <signal.h>
+#include <string.h>
+#include <errno.h>
+#include <string>
+#include <sstream>
+
 using namespace cv;
 
 std::string executeCommand(const char* cmd) 
@@ -112,6 +120,12 @@ BackgroundSwitcher::BackgroundSwitcher(QString scriptPath, QString modelPath) :
 
 BackgroundSwitcher::~BackgroundSwitcher()
 {
+
+	if(_pythonProcess != nullptr)
+	{
+		_pythonProcess->kill();
+	}
+
 	if (_pDnnThread != nullptr)
 	{
 		delete _pDnnThread;
@@ -215,13 +229,25 @@ void BackgroundSwitcher::postprocess(const cv::Mat& out)
 
 void BackgroundSwitcher::startDNN()
 {	
-	_pDnnThread = new std::thread([&]() {
-		executeCommand(QString("%1 -m %2 -i %3 -o %4")
-			.arg(correctPath(_scriptPath))
-			.arg(correctPath(_modelPath))
-			.arg(correctPath(_dnnUtilityDir) + "/input")
-			.arg(correctPath(_dnnUtilityDir) + "/output").toStdString().c_str());
-	});
+	QString command = QString("%1 -m %2 -i %3 -o %4")
+		.arg(correctPath(_scriptPath))
+		.arg(correctPath(_modelPath))
+		.arg(correctPath(_dnnUtilityDir) + "/input")
+		.arg(correctPath(_dnnUtilityDir) + "/output");
+
+	QString program = correctPath(_scriptPath);
+
+	QStringList arguments;
+	arguments << "-m" << correctPath(_modelPath) 
+		<< "-i" << correctPath(_dnnUtilityDir) + "/input"  
+		<< "-o" << correctPath(_dnnUtilityDir) + "/output";
+
+	_pythonProcess = new QProcess();
+	_pythonProcess->start(program, arguments);
+
+	/*_pDnnThread = new std::thread([&]() {
+		executeCommand(command.toStdString().c_str());
+	});*/
 }
 
 QString BackgroundSwitcher::correctPath(QString path)

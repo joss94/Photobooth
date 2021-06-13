@@ -33,7 +33,7 @@ public:
 
 	cv::Mat refreshImageThread();
 
-	void setMosaicSize(int szW, int szH);
+	void setMosaicSize(int szW, int szH, bool refreshTiles = true);
 
 	void setMaxOccurence(int maxOccurence);
 
@@ -61,6 +61,7 @@ private:
 	double _baseOpacity;
 	int _displaySpeed;
 
+	QString _baseImagePath;
 	cv::Mat _baseImage;
 	cv::Mat _largeBaseImage;
 	cv::Mat _mosaicImage;
